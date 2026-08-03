@@ -1,0 +1,237 @@
+{
+  "captured_date": "2026-08-02",
+  "device": "Levoit VeSync Classic 300S humidifier",
+  "baud_rate": {
+    "value": 9600,
+    "note": "Working ESPHome diagnostic configuration; 8 data bits, no parity, 1 stop bit."
+  },
+  "fp1": {
+    "1": {
+      "name": "VDD",
+      "voltage": 5.0,
+      "confidence": "confirmed"
+    },
+    "2": {
+      "name": "VSS_GND",
+      "confidence": "confirmed"
+    },
+    "3": {
+      "name": "ESP32_to_MCU_UART",
+      "confidence": "confirmed"
+    },
+    "4": {
+      "name": "MCU_to_ESP32_UART",
+      "confidence": "confirmed"
+    }
+  },
+  "frame": {
+    "preamble": "A5",
+    "layout": [
+      "preamble",
+      "type",
+      "sequence",
+      "length_le_low",
+      "length_le_high",
+      "checksum",
+      "payload"
+    ],
+    "types": {
+      "22": "ESP32_to_MCU_command",
+      "12": "MCU_to_ESP32_ack_or_response",
+      "02": "MCU_to_ESP32_status"
+    },
+    "checksum": {
+      "rule": "sum(all bytes including checksum) modulo 256 equals 0xFF",
+      "formula": "checksum = (0xFF - (sum(all other bytes) & 0xFF)) & 0xFF"
+    }
+  },
+  "commands": {
+    "A000_power": {
+      "payload_template": [
+        "01",
+        "00",
+        "A0",
+        "00",
+        "value"
+      ],
+      "values": {
+        "00": "off",
+        "01": "on"
+      },
+      "confidence": "confirmed"
+    },
+    "A003_night_light": {
+      "payload_template": [
+        "01",
+        "03",
+        "A0",
+        "00",
+        "01",
+        "brightness"
+      ],
+      "values": {
+        "00": "off",
+        "32": "50_percent",
+        "64": "100_percent"
+      },
+      "confidence": "confirmed"
+    },
+    "A260_manual_mist": {
+      "payload_template": [
+        "01",
+        "60",
+        "A2",
+        "00",
+        "00",
+        "01",
+        "level"
+      ],
+      "observed_levels": [
+        1,
+        2,
+        4,
+        9
+      ],
+      "confidence": "confirmed"
+    },
+    "4080_auto_mode": {
+      "payload_template": [
+        "01",
+        "80",
+        "40",
+        "00",
+        "target",
+        "target_minus_5",
+        "target_plus_5",
+        "09",
+        "05",
+        "01"
+      ],
+      "confidence": "target_and_plus_minus_5_confirmed_trailing_fields_tentative"
+    },
+    "4084_status_request": {
+      "payload": [
+        "01",
+        "84",
+        "40",
+        "00"
+      ],
+      "confidence": "confirmed"
+    }
+  },
+  "status_report": {
+    "prefix": [
+      "01",
+      "85",
+      "40"
+    ],
+    "fields": {
+      "D0": {
+        "meaning": null,
+        "confidence": "unknown"
+      },
+      "D1": {
+        "meaning": null,
+        "confidence": "unknown"
+      },
+      "D2": {
+        "meaning": null,
+        "confidence": "unknown"
+      },
+      "D3": {
+        "meaning": "constant_or_version",
+        "observed": 2,
+        "confidence": "tentative"
+      },
+      "D4": {
+        "meaning": "power",
+        "values": {
+          "0": "off",
+          "1": "on"
+        },
+        "confidence": "confirmed"
+      },
+      "D5": {
+        "meaning": "tank_lifted_interlock",
+        "values": {
+          "0": "seated",
+          "1": "lifted"
+        },
+        "confidence": "confirmed"
+      },
+      "D6": {
+        "meaning": null,
+        "note": "possible warning/state flag",
+        "confidence": "unknown"
+      },
+      "D7": {
+        "meaning": null,
+        "note": "operating flag",
+        "confidence": "unknown"
+      },
+      "D8": {
+        "meaning": null,
+        "note": "operating flag",
+        "confidence": "unknown"
+      },
+      "D9": {
+        "meaning": null,
+        "note": "often follows active output state",
+        "confidence": "tentative"
+      },
+      "D10": {
+        "meaning": "target_humidity_percent",
+        "encoding": "unsigned decimal byte",
+        "confidence": "confirmed"
+      },
+      "D11": {
+        "meaning": "current_humidity_percent",
+        "encoding": "unsigned decimal byte",
+        "confidence": "confirmed"
+      },
+      "D12": {
+        "meaning": "temperature_celsius",
+        "encoding": "unsigned decimal byte",
+        "confidence": "strong"
+      },
+      "D13": {
+        "meaning": "mode",
+        "values": {
+          "0": "auto",
+          "1": "manual"
+        },
+        "confidence": "confirmed"
+      },
+      "D14": {
+        "meaning": "manual_mist_level",
+        "confidence": "confirmed"
+      },
+      "D15": {
+        "meaning": "night_light_brightness_percent",
+        "values": {
+          "0": 0,
+          "50": 50,
+          "100": 100
+        },
+        "confidence": "confirmed"
+      },
+      "D16": {
+        "meaning": null,
+        "note": "reserved_or_error_candidate",
+        "confidence": "unknown"
+      }
+    }
+  },
+  "warnings": {
+    "tank_lifted": {
+      "field": "D5",
+      "active_value": 1,
+      "confidence": "confirmed"
+    },
+    "out_of_water": {
+      "field": null,
+      "confidence": "not_mapped",
+      "note": "Requires a controlled tank-seated full-water versus tank-seated empty-water capture."
+    }
+  }
+}

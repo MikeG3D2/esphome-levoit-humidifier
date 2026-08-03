@@ -1,0 +1,30 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  protocol-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install Python test tools
+        run: python -m pip install pytest ruff
+
+      - name: Test C++ protocol implementation
+        run: bash tests/run_cpp_tests.sh
+
+      - name: Test Python protocol scaffold
+        run: pytest -q
+
+      - name: Lint Python
+        run: ruff check components tests levoit_uart_parser.py

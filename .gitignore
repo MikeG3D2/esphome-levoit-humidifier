@@ -1,0 +1,16 @@
+.esphome/
+build/
+*.bin
+*.elf
+*.map
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+__pycache__/
+*.py[cod]
+secrets.yaml
+.venv/
+venv/
