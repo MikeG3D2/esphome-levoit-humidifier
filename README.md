@@ -12,7 +12,7 @@ This project is based on UART captures from a Classic 300S and follows the exter
 | Function | Home Assistant entity | Status |
 |---|---|---|
 | Power and mist level 1–9 | Fan | Implemented; levels 1, 2, 4, and 9 observed directly |
-| Manual/auto mode | Select | Implemented |
+| Manual/auto mode | Select | Implemented; unmapped MCU values report `Unknown` |
 | Auto target humidity, 30–80% | Number | Implemented; arbitrary targets observed |
 | Current humidity | Sensor | Implemented |
 | Temperature | Sensor | Implemented; byte is believed to be °C |
@@ -103,6 +103,23 @@ levoit_classic_300s:
 ```
 
 `command_interval` spaces frames sent to the main MCU. After a control command, the module automatically requests authoritative status instead of assuming that the MCU accepted the requested state.
+
+### Capturing unmapped states
+
+The `raw_status` diagnostic entity exposes status bytes D0-D16. For a controlled capture, temporarily compile complete frame logging for only this component:
+
+```yaml
+logger:
+  level: VERY_VERBOSE
+  initial_level: DEBUG
+  baud_rate: 0
+  logs:
+    levoit_classic_300s: VERY_VERBOSE
+```
+
+View the logs through the ESPHome Device Builder or `esphome logs`. The component records every valid transmitted and received frame, while `baud_rate: 0` keeps UART0 quiet for flashing and recovery. `VERY_VERBOSE` logging can affect performance and API stability, so restore the normal `DEBUG` logger after collecting captures.
+
+Change one physical state at a time and save the complete before/after frames. An unrecognized operating-mode byte is reported as `Unknown` instead of being guessed as Auto; its exact value remains visible in `raw_status` and the frame log.
 
 ## Protocol design
 

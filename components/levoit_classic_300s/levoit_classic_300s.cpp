@@ -30,8 +30,10 @@ void LevoitHumidifierFan::control(const fan::FanCall &call) {
 void LevoitModeSelect::control(size_t index) {
   if (index == 0) {
     this->parent_->set_auto_mode(0);
-  } else {
+  } else if (index == 1) {
     this->parent_->set_manual_mist_level(0);
+  } else {
+    ESP_LOGW(TAG, "Unknown is a reported-only mode and cannot be selected");
   }
 }
 
@@ -188,7 +190,15 @@ void LevoitClassic300S::publish_status_(const protocol::Status &status) {
     this->humidifier_->publish_state();
   }
   if (this->mode_select_ != nullptr) {
-    this->mode_select_->publish_state(status.mode == protocol::OperatingMode::AUTO ? "Auto" : "Manual");
+    const char *mode = "Unknown";
+    if (status.mode == protocol::OperatingMode::AUTO) {
+      mode = "Auto";
+    } else if (status.mode == protocol::OperatingMode::MANUAL) {
+      mode = "Manual";
+    } else {
+      ESP_LOGW(TAG, "Unmapped operating mode byte: 0x%02X", status.raw[13]);
+    }
+    this->mode_select_->publish_state(mode);
   }
   if (this->target_humidity_number_ != nullptr) {
     this->target_humidity_number_->publish_state(status.target_humidity);

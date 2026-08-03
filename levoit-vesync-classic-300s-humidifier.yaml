@@ -8,7 +8,7 @@ esphome:
 
 # Stock module: ESP32-SOLO-1 / ESP32-S0WD, single core, 4 MB flash.
 esp32:
-  board: esp32dev
+  variant: esp32
   flash_size: 4MB
   cpu_frequency: 160MHz
   framework:

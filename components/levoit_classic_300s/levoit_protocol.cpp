@@ -99,7 +99,17 @@ bool decode_status(const Frame &frame, Status &status) {
   status.target_humidity = status.raw[10];
   status.current_humidity = status.raw[11];
   status.temperature_celsius = status.raw[12];
-  status.mode = status.raw[13] == 1 ? OperatingMode::MANUAL : OperatingMode::AUTO;
+  switch (status.raw[13]) {
+    case 0:
+      status.mode = OperatingMode::AUTO;
+      break;
+    case 1:
+      status.mode = OperatingMode::MANUAL;
+      break;
+    default:
+      status.mode = OperatingMode::UNKNOWN;
+      break;
+  }
   status.manual_mist_level = status.raw[14];
   status.night_light_percent = status.raw[15];
   return true;

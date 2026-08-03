@@ -7,6 +7,7 @@
 
 using esphome::levoit_classic_300s::protocol::Frame;
 using esphome::levoit_classic_300s::protocol::FrameParser;
+using esphome::levoit_classic_300s::protocol::OperatingMode;
 using esphome::levoit_classic_300s::protocol::ParseResult;
 using esphome::levoit_classic_300s::protocol::Status;
 using esphome::levoit_classic_300s::protocol::build_frame;
@@ -72,8 +73,22 @@ static void test_status_decode() {
   assert(status.target_humidity == 35);
   assert(status.current_humidity == 53);
   assert(status.temperature_celsius == 24);
+  assert(status.mode == OperatingMode::MANUAL);
   assert(status.manual_mist_level == 8);
   assert(status.night_light_percent == 50);
+}
+
+static void test_unknown_mode_is_not_reported_as_auto() {
+  const std::vector<uint8_t> payload{
+      0x01, 0x85, 0x40,
+      0x00, 0x00, 0x00, 0x02, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01,
+      0x23, 0x35, 0x18, 0x02, 0x08, 0x32, 0x00,
+  };
+  Frame frame{0x02, 0x12, payload};
+  Status status;
+  assert(decode_status(frame, status));
+  assert(status.mode == OperatingMode::UNKNOWN);
+  assert(status.raw[13] == 0x02);
 }
 
 int main() {
@@ -81,6 +96,7 @@ int main() {
   test_stream_parser_ignores_noise_and_accepts_fragments();
   test_bad_checksum_is_rejected_then_parser_recovers();
   test_status_decode();
+  test_unknown_mode_is_not_reported_as_auto();
   std::cout << "All Levoit protocol tests passed\n";
   return 0;
 }

@@ -39,6 +39,7 @@ class FrameParser {
 enum class OperatingMode : uint8_t {
   AUTO = 0,
   MANUAL = 1,
+  UNKNOWN = 0xFF,
 };
 
 struct Status {
@@ -47,7 +48,7 @@ struct Status {
   uint8_t target_humidity{0};
   uint8_t current_humidity{0};
   uint8_t temperature_celsius{0};
-  OperatingMode mode{OperatingMode::AUTO};
+  OperatingMode mode{OperatingMode::UNKNOWN};
   uint8_t manual_mist_level{0};
   uint8_t night_light_percent{0};
   std::array<uint8_t, 17> raw{};

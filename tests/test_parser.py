@@ -46,3 +46,12 @@ def test_decode_captured_status():
     assert status["mode"] == "manual"
     assert status["manual_mist_level"] == 8
     assert status["night_light_brightness_percent"] == 50
+
+
+def test_decode_preserves_unknown_mode_value():
+    payload = bytearray.fromhex(
+        "01 85 40 00 00 00 02 01 00 00 01 00 01 23 35 18 01 08 32 00"
+    )
+    payload[16] = 2
+    status = decode_status_payload(bytes(payload))
+    assert status["mode"] == "unknown_2"
