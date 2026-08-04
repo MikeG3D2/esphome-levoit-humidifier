@@ -1,5 +1,7 @@
 # ESPHome Levoit Classic 300S Humidifier
 
+[![Tests](https://github.com/MikeG3D2/esphome-levoit-humidifier/actions/workflows/tests.yml/badge.svg)](https://github.com/MikeG3D2/esphome-levoit-humidifier/actions/workflows/tests.yml)
+
 Local, cloud-free control of the Levoit VeSync Classic 300S humidifier by replacing the stock ESP32 firmware with ESPHome. The ESP32 continues to use the appliance's original main MCU for the control panel, sensors, safety interlocks, and mist hardware.
 
 This project is based on UART captures from a Classic 300S and follows the external-component layout used by [acvigue/esphome-levoit-air-purifier](https://github.com/acvigue/esphome-levoit-air-purifier).
@@ -210,7 +212,7 @@ esphome config levoit-classic-300s-ci.yaml
 esphome compile levoit-classic-300s-ci.yaml
 ```
 
-The C++ tests cover captured frame reproduction, every command builder, incremental parsing, malformed-stream recovery, bounded buffering, status decoding, and communication-health behavior. The Python reverse-engineering scaffold has matching normalization and regression tests. CI pins ESPHome 2026.7.1 and compiles the checked-out local component without secrets.
+The C++ tests cover captured frame reproduction, every command builder, incremental parsing, malformed-stream recovery, bounded buffering, status decoding, and communication-health behavior. The Python reverse-engineering scaffold has matching normalization and regression tests. CI installs the pinned tools in `requirements-ci.txt` and compiles the checked-out local component without secrets.
 
 ## Reverse-engineering next steps
 

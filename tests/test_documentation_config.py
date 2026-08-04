@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 DEVICE_BUILDER_CONFIG = ROOT / "levoit-vesync-classic-300s-humidifier.yaml"
 README = ROOT / "README.md"
