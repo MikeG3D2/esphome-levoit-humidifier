@@ -44,23 +44,23 @@ Unplug the humidifier and remove the water tank before starting. Keep the mains 
 
 1. Turn the humidifier upside down. Remove all four rubber feet to expose one screw beneath each foot, then remove those four screws and the two visible screws beside the power-cord bracket (six bottom screws total).
 
-   <img src="levoit-vesync-classic300s-1-bottom.jpeg" width="720" alt="Bottom of the Levoit Classic 300S, showing the four rubber feet and two power-cord bracket screws">
+   <img src="docs/images/levoit-vesync-classic300s-1-bottom.jpeg" width="720" alt="Bottom of the Levoit Classic 300S, showing the four rubber feet and two power-cord bracket screws">
 
 2. Lift the bottom shell carefully without pulling on the internal wiring. Remove the two screws securing the white plastic bracket around the control/display (MCU) assembly.
 
-   <img src="levoit-vesync-classic300s-2-mcu.jpeg" width="720" alt="Two screws securing the white plastic control-board bracket inside the humidifier">
+   <img src="docs/images/levoit-vesync-classic300s-2-mcu.jpeg" width="720" alt="Two screws securing the white plastic control-board bracket inside the humidifier">
 
 3. The assembly in the photographed unit was not glued. Gently push the black display back and inward while moving the white plastic bracket forward. Once the display clears the plastic case, the assembly should come out freely. Do not pry against the PCB or pull it by its wires.
 
-   <img src="levoit-vesync-classic300s-3-mcu-removal.jpeg" width="720" alt="Removing the control and display assembly from the plastic case">
+   <img src="docs/images/levoit-vesync-classic300s-3-mcu-removal.jpeg" width="720" alt="Removing the control and display assembly from the plastic case">
 
 4. Turn the freed control/display assembly over to expose the ESP32 daughterboard at its edge. Support the assembly so that its connectors and wires are not strained.
 
-   <img src="levoit-vesync-classic300s-4-mcu-unit-overview.jpeg" width="720" alt="Freed control and display assembly with the ESP32 daughterboard visible at the right edge">
+   <img src="docs/images/levoit-vesync-classic300s-4-mcu-unit-overview.jpeg" width="720" alt="Freed control and display assembly with the ESP32 daughterboard visible at the right edge">
 
 5. Locate the six unpopulated serial-header holes on the ESP32 daughterboard. With the board oriented exactly as in the close-up below, they are, from left to right: **IO0, RxD0, TxD0, EN, GROUND, 3.3V**.
 
-   <img src="levoit-vesync-classic300s-esp32-header.jpeg" width="720" alt="Close-up of the ESP32 daughterboard and its six-pin serial programming header">
+   <img src="docs/images/levoit-vesync-classic300s-esp32-header.jpeg" width="720" alt="Close-up of the ESP32 daughterboard and its six-pin serial programming header">
 
 ## Back up and flash with a CP2102
 
