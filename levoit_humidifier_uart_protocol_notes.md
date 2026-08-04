@@ -1,6 +1,6 @@
 # Levoit Humidifier UART Reverse-Engineering Notes
 
-Captured: 2026-08-02
+Captured: 2026-08-02 through 2026-08-03
 Status: Core commands and primary status fields mapped from controlled captures.
 
 ## Electrical / FP1 Pinout
@@ -135,7 +135,7 @@ Status frame payload:
 | D3 | Constant/version-like field | Observed `02` | Tentative |
 | D4 | Power | `00` off, `01` on | Confirmed |
 | D5 | Tank lifted / tank interlock open | `01` lifted, `00` seated | Confirmed |
-| D6 | Unknown warning/state flag | Candidate for a safety/water flag, but not isolated | Unknown |
+| D6 | No water / magnetic float open | `01` no water, `00` water present | Confirmed |
 | D7 | Unknown operating flag | Changes during operation/transitions | Unknown |
 | D8 | Unknown operating flag | Changes during operation/transitions | Unknown |
 | D9 | Unknown operating flag | Often follows active output state | Tentative |
@@ -181,18 +181,38 @@ D5 = 00  tank seated / interlock closed
 
 ### Out of water
 
-Not yet conclusively mapped.
+Confirmed as D6 using tank-seated empty and refill captures:
 
-Likely candidates are currently-unidentified status flags such as `D6`, `D7`, `D8`, `D9`, or `D16`, but no controlled capture isolated only the water-empty condition. Do not assign a field until a baseline/full-water capture is compared with a tank-seated, no-water warning capture.
+```text
+00 00 00 02 00 00 01 01 00 00 25 2F 16 00 00 64 00
+                  ^^
+                  D6 = 01
+```
 
-Recommended controlled capture:
+This frame also has `D5 = 00`, confirming that the tank interlock is seated. After water was added without lifting the tank, D6 initially remained set:
 
-1. Fully reassemble the appliance and keep mains electronics enclosed.
-2. Capture FP1 pin 4 with tank seated and sufficient water.
-3. Record several complete status frames.
-4. Produce the app's out-of-water warning while keeping the tank interlock seated.
-5. Record several more status frames.
-6. Diff only `D0` through `D16`.
+```text
+00 00 00 02 00 00 01 00 00 00 25 32 16 00 00 00 00
+                  ^^
+                  D6 = 01
+```
+
+About 6.5 seconds later, the next status update cleared D6:
+
+```text
+00 00 00 02 00 00 00 00 00 00 25 32 16 00 00 00 00
+                  ^^
+                  D6 = 00
+```
+
+D5 remained `00` in all three frames, so this is independent of the tank-lifted interlock. D7 was already `00` in both refill frames while D6 changed from `01` to `00`, directly isolating D6 as the magnetic float state.
+
+Current mapping:
+
+```text
+D6 = 01  no water / magnetic float open
+D6 = 00  water present / magnetic float closed
+```
 
 ## Startup / Unknown Commands
 
@@ -209,10 +229,10 @@ Do not label these without controlled captures.
 
 - Streaming frame parser and checksum validation: implemented in `components/levoit_classic_300s/levoit_protocol.*`.
 - Power, light, manual mode, auto mode, and status-query builders: implemented.
+- Tank-lifted and no-water problem sensors: implemented on D5 and D6 respectively.
 - ESPHome fan, select, number, light, sensor, binary-sensor, and diagnostic adapters: implemented.
 
 ## Next Development Tasks
 
-- Map out-of-water warning.
-- Identify D6–D9 and D16 through one-variable-at-a-time tests.
+- Identify D7–D9 and D16 through one-variable-at-a-time tests.
 - Capture sleep mode and display control independently.

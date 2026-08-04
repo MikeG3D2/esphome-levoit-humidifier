@@ -219,6 +219,30 @@ static void test_status_decode() {
   assert(status.night_light_percent == 50);
 }
 
+static void test_captured_no_water_status_is_separate_from_tank_lifted() {
+  const std::vector<uint8_t> payload{
+      0x01, 0x85, 0x40,
+      0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00,
+      0x25, 0x2F, 0x16, 0x00, 0x00, 0x64, 0x00,
+  };
+  Status status;
+  assert(decode_status(Frame{0x02, 0x14, payload}, status));
+  assert(!status.tank_lifted);
+  assert(status.no_water);
+}
+
+static void test_captured_refill_clears_no_water_with_tank_seated() {
+  const std::vector<uint8_t> payload{
+      0x01, 0x85, 0x40,
+      0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x25, 0x32, 0x16, 0x00, 0x00, 0x00, 0x00,
+  };
+  Status status;
+  assert(decode_status(Frame{0x02, 0x14, payload}, status));
+  assert(!status.tank_lifted);
+  assert(!status.no_water);
+}
+
 static void test_status_decode_rejects_unrecognized_frames() {
   const std::vector<uint8_t> valid_payload{
       0x01, 0x85, 0x40,
@@ -281,6 +305,8 @@ int main() {
   test_preamble_byte_inside_valid_payload_is_preserved();
   test_stream_buffer_remains_bounded_under_malformed_input();
   test_status_decode();
+  test_captured_no_water_status_is_separate_from_tank_lifted();
+  test_captured_refill_clears_no_water_with_tank_seated();
   test_status_decode_rejects_unrecognized_frames();
   test_unknown_mode_is_not_reported_as_auto();
   test_status_preserves_invalid_target_for_diagnostics();

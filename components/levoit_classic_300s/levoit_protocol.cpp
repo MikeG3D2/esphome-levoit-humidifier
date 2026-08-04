@@ -137,6 +137,7 @@ bool decode_status(const Frame &frame, Status &status) {
   std::copy_n(frame.payload.begin() + 3, status.raw.size(), status.raw.begin());
   status.power = status.raw[4] != 0;
   status.tank_lifted = status.raw[5] != 0;
+  status.no_water = status.raw[6] != 0;
   status.target_humidity = status.raw[10];
   status.current_humidity = status.raw[11];
   status.temperature_celsius = status.raw[12];

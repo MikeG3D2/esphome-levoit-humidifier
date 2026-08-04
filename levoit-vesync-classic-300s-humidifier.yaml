@@ -17,9 +17,8 @@ esp32:
       CONFIG_FREERTOS_UNICORE: y
 
 external_components:
-  - source:
-      type: local
-      path: components
+  - source: github://MikeG3D2/esphome-levoit-humidifier@main
+    refresh: 0s
     components: [levoit_classic_300s]
 
 # Keep UART0 quiet and retain GPIO1/GPIO3 for flashing/recovery.
@@ -61,7 +60,6 @@ levoit_classic_300s:
   uart_id: humidifier_uart
   update_interval: 30s
   command_interval: 100ms
-  status_response_timeout: 5s
 
   humidifier:
     name: Humidifier
@@ -71,6 +69,9 @@ levoit_classic_300s:
 
   target_humidity:
     name: Target humidity
+
+  manual_mist_level:
+    name: Manual mist level
 
   night_light:
     name: Night light
@@ -86,8 +87,8 @@ levoit_classic_300s:
   tank_lifted:
     name: Tank lifted
 
-  communication_problem:
-    name: MCU communication problem
+  no_water:
+    name: No water
 
   raw_status:
     name: Raw MCU status

@@ -39,10 +39,12 @@ CONF_STATUS_RESPONSE_TIMEOUT = "status_response_timeout"
 CONF_HUMIDIFIER = "humidifier"
 CONF_MODE = "mode"
 CONF_TARGET_HUMIDITY = "target_humidity"
+CONF_MANUAL_MIST_LEVEL = "manual_mist_level"
 CONF_NIGHT_LIGHT = "night_light"
 CONF_CURRENT_HUMIDITY = "current_humidity"
 CONF_TEMPERATURE = "temperature"
 CONF_TANK_LIFTED = "tank_lifted"
+CONF_NO_WATER = "no_water"
 CONF_COMMUNICATION_PROBLEM = "communication_problem"
 CONF_RAW_STATUS = "raw_status"
 
@@ -54,6 +56,9 @@ LevoitHumidifierFan = levoit_ns.class_("LevoitHumidifierFan", fan.Fan)
 LevoitModeSelect = levoit_ns.class_("LevoitModeSelect", select.Select)
 LevoitTargetHumidityNumber = levoit_ns.class_(
     "LevoitTargetHumidityNumber", number.Number
+)
+LevoitManualMistLevelNumber = levoit_ns.class_(
+    "LevoitManualMistLevelNumber", number.Number
 )
 LevoitNightLight = levoit_ns.class_("LevoitNightLight", light.LightOutput)
 
@@ -83,6 +88,11 @@ CONFIG_SCHEMA = (
                 unit_of_measurement=UNIT_PERCENT,
                 entity_category=ENTITY_CATEGORY_CONFIG,
             ),
+            cv.Optional(CONF_MANUAL_MIST_LEVEL): number.number_schema(
+                LevoitManualMistLevelNumber,
+                icon="mdi:weather-fog",
+                entity_category=ENTITY_CATEGORY_CONFIG,
+            ),
             cv.Optional(CONF_NIGHT_LIGHT): light.light_schema(
                 LevoitNightLight,
                 light.LightType.BRIGHTNESS_ONLY,
@@ -104,6 +114,11 @@ CONFIG_SCHEMA = (
             cv.Optional(CONF_TANK_LIFTED): binary_sensor.binary_sensor_schema(
                 device_class=DEVICE_CLASS_PROBLEM,
                 icon="mdi:cup-water",
+                entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            ),
+            cv.Optional(CONF_NO_WATER): binary_sensor.binary_sensor_schema(
+                device_class=DEVICE_CLASS_PROBLEM,
+                icon="mdi:water-alert",
                 entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
             ),
             cv.Optional(
@@ -147,7 +162,7 @@ async def to_code(config):
 
     if entity_config := config.get(CONF_MODE):
         entity = await select.new_select(
-            entity_config, parent, options=["Auto", "Manual", "Unknown"]
+            entity_config, parent, options=["Auto", "Manual"]
         )
         cg.add(parent.set_mode_select(entity))
 
@@ -160,6 +175,16 @@ async def to_code(config):
             step=1,
         )
         cg.add(parent.set_target_humidity_number(entity))
+
+    if entity_config := config.get(CONF_MANUAL_MIST_LEVEL):
+        entity = await number.new_number(
+            entity_config,
+            parent,
+            min_value=1,
+            max_value=9,
+            step=1,
+        )
+        cg.add(parent.set_manual_mist_level_number(entity))
 
     if entity_config := config.get(CONF_NIGHT_LIGHT):
         entity = await light.new_light(entity_config, parent)
@@ -176,6 +201,10 @@ async def to_code(config):
     if entity_config := config.get(CONF_TANK_LIFTED):
         entity = await binary_sensor.new_binary_sensor(entity_config)
         cg.add(parent.set_tank_lifted_binary_sensor(entity))
+
+    if entity_config := config.get(CONF_NO_WATER):
+        entity = await binary_sensor.new_binary_sensor(entity_config)
+        cg.add(parent.set_no_water_binary_sensor(entity))
 
     if entity_config := config.get(CONF_COMMUNICATION_PROBLEM):
         entity = await binary_sensor.new_binary_sensor(entity_config)

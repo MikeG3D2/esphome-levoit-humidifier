@@ -49,6 +49,15 @@ class LevoitTargetHumidityNumber final : public number::Number {
   LevoitClassic300S *parent_;
 };
 
+class LevoitManualMistLevelNumber final : public number::Number {
+ public:
+  explicit LevoitManualMistLevelNumber(LevoitClassic300S *parent) : parent_(parent) {}
+
+ protected:
+  void control(float value) override;
+  LevoitClassic300S *parent_;
+};
+
 class LevoitNightLight final : public light::LightOutput {
  public:
   explicit LevoitNightLight(LevoitClassic300S *parent) : parent_(parent) {}
@@ -76,10 +85,14 @@ class LevoitClassic300S final : public PollingComponent, public uart::UARTDevice
   void set_humidifier(LevoitHumidifierFan *humidifier) { this->humidifier_ = humidifier; }
   void set_mode_select(LevoitModeSelect *mode_select) { this->mode_select_ = mode_select; }
   void set_target_humidity_number(LevoitTargetHumidityNumber *number) { this->target_humidity_number_ = number; }
+  void set_manual_mist_level_number(LevoitManualMistLevelNumber *number) {
+    this->manual_mist_level_number_ = number;
+  }
   void set_night_light(LevoitNightLight *night_light) { this->night_light_ = night_light; }
   void set_current_humidity_sensor(sensor::Sensor *sensor) { this->current_humidity_sensor_ = sensor; }
   void set_temperature_sensor(sensor::Sensor *sensor) { this->temperature_sensor_ = sensor; }
   void set_tank_lifted_binary_sensor(binary_sensor::BinarySensor *sensor) { this->tank_lifted_sensor_ = sensor; }
+  void set_no_water_binary_sensor(binary_sensor::BinarySensor *sensor) { this->no_water_sensor_ = sensor; }
   void set_communication_problem_binary_sensor(binary_sensor::BinarySensor *sensor) {
     this->communication_problem_sensor_ = sensor;
   }
@@ -117,10 +130,12 @@ class LevoitClassic300S final : public PollingComponent, public uart::UARTDevice
   LevoitHumidifierFan *humidifier_{nullptr};
   LevoitModeSelect *mode_select_{nullptr};
   LevoitTargetHumidityNumber *target_humidity_number_{nullptr};
+  LevoitManualMistLevelNumber *manual_mist_level_number_{nullptr};
   LevoitNightLight *night_light_{nullptr};
   sensor::Sensor *current_humidity_sensor_{nullptr};
   sensor::Sensor *temperature_sensor_{nullptr};
   binary_sensor::BinarySensor *tank_lifted_sensor_{nullptr};
+  binary_sensor::BinarySensor *no_water_sensor_{nullptr};
   binary_sensor::BinarySensor *communication_problem_sensor_{nullptr};
   text_sensor::TextSensor *raw_status_sensor_{nullptr};
 };

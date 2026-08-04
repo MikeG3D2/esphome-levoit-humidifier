@@ -41,6 +41,8 @@ levoit_classic_300s:
     name: Mode
   target_humidity:
     name: Target humidity
+  manual_mist_level:
+    name: Manual mist level
   night_light:
     name: Night light
     gamma_correct: 1.0
@@ -51,6 +53,8 @@ levoit_classic_300s:
     name: Temperature
   tank_lifted:
     name: Tank lifted
+  no_water:
+    name: No water
   communication_problem:
     name: MCU communication problem
   raw_status:

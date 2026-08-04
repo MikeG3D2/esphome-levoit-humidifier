@@ -33,13 +33,17 @@ void LevoitModeSelect::control(size_t index) {
   } else if (index == 1) {
     this->parent_->set_manual_mist_level(0);
   } else {
-    ESP_LOGW(TAG, "Unknown is a reported-only mode and cannot be selected");
+    ESP_LOGW(TAG, "Ignoring invalid operating mode index: %u", static_cast<unsigned>(index));
   }
 }
 
 void LevoitTargetHumidityNumber::control(float value) {
   const auto target = static_cast<uint8_t>(std::lround(value));
   this->parent_->set_auto_mode(target);
+}
+
+void LevoitManualMistLevelNumber::control(float value) {
+  this->parent_->set_manual_mist_level(static_cast<uint8_t>(std::lround(value)));
 }
 
 light::LightTraits LevoitNightLight::get_traits() {
@@ -149,10 +153,12 @@ void LevoitClassic300S::dump_config() {
   ESP_LOGCONFIG(TAG, "  Humidifier entity: %s", YESNO(this->humidifier_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Mode entity: %s", YESNO(this->mode_select_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Target humidity entity: %s", YESNO(this->target_humidity_number_ != nullptr));
+  ESP_LOGCONFIG(TAG, "  Manual mist level entity: %s", YESNO(this->manual_mist_level_number_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Night light entity: %s", YESNO(this->night_light_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Current humidity sensor: %s", YESNO(this->current_humidity_sensor_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Temperature sensor: %s", YESNO(this->temperature_sensor_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Tank lifted sensor: %s", YESNO(this->tank_lifted_sensor_ != nullptr));
+  ESP_LOGCONFIG(TAG, "  No water sensor: %s", YESNO(this->no_water_sensor_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Communication problem sensor: %s", YESNO(this->communication_problem_sensor_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Raw status sensor: %s", YESNO(this->raw_status_sensor_ != nullptr));
 }
@@ -226,18 +232,20 @@ void LevoitClassic300S::publish_status_(const protocol::Status &status) {
     this->humidifier_->publish_state();
   }
   if (this->mode_select_ != nullptr) {
-    const char *mode = "Unknown";
     if (status.mode == protocol::OperatingMode::AUTO) {
-      mode = "Auto";
+      this->mode_select_->publish_state("Auto");
     } else if (status.mode == protocol::OperatingMode::MANUAL) {
-      mode = "Manual";
+      this->mode_select_->publish_state("Manual");
     } else {
       ESP_LOGW(TAG, "Unmapped operating mode byte: 0x%02X", status.raw[13]);
     }
-    this->mode_select_->publish_state(mode);
   }
   if (this->target_humidity_number_ != nullptr && target_humidity_valid) {
     this->target_humidity_number_->publish_state(status.target_humidity);
+  }
+  if (this->manual_mist_level_number_ != nullptr && status.manual_mist_level >= 1 &&
+      status.manual_mist_level <= 9) {
+    this->manual_mist_level_number_->publish_state(status.manual_mist_level);
   }
   if (this->night_light_ != nullptr) {
     this->night_light_->sync_brightness(status.night_light_percent);
@@ -250,6 +258,9 @@ void LevoitClassic300S::publish_status_(const protocol::Status &status) {
   }
   if (this->tank_lifted_sensor_ != nullptr) {
     this->tank_lifted_sensor_->publish_state(status.tank_lifted);
+  }
+  if (this->no_water_sensor_ != nullptr) {
+    this->no_water_sensor_->publish_state(status.no_water);
   }
   if (this->raw_status_sensor_ != nullptr) {
     this->raw_status_sensor_->publish_state(hex_(status.raw));

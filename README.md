@@ -11,16 +11,17 @@ This project is based on UART captures from a Classic 300S and follows the exter
 
 | Function | Home Assistant entity | Status |
 |---|---|---|
-| Power and mist level 1–9 | Fan | Implemented; levels 1, 2, 4, and 9 observed directly |
-| Manual/auto mode | Select | Implemented; unmapped MCU values report `Unknown` |
+| Power | Fan | Implemented |
+| Manual mist level 1–9 | Number + Fan speed | Implemented; levels 1, 2, 4, 5, 8, and 9 observed directly |
+| Manual/auto mode | Select | Implemented; unmapped wire values are logged without changing the entity |
 | Auto target humidity, 30–80% | Number | Implemented; arbitrary targets observed |
 | Current humidity | Sensor | Implemented |
 | Temperature | Sensor | Implemented; byte is believed to be °C |
 | Night light off/50%/100% | Light | Implemented; other brightness values are quantized |
 | Tank lifted/interlock open | Problem binary sensor | Implemented |
+| No water/magnetic float open | Problem binary sensor | Implemented; mapped to status byte D6 |
 | MCU communication loss | Optional problem binary sensor + component warning | Implemented |
 | Raw 17-byte MCU state | Diagnostic text sensor | Implemented |
-| Out-of-water warning | — | Not mapped yet |
 | Sleep mode/display control | — | Not mapped yet |
 | Timers and schedules | Home Assistant automations | Intentionally handled in Home Assistant |
 
@@ -37,6 +38,12 @@ The stock Wi-Fi module is an ESP32-SOLO-1 / ESP32-S0WD with 4 MB flash. The appl
 | GPIO1 / GPIO3 | — | UART0, retained for flashing/recovery |
 
 The FP1 connector and captured protocol are documented in [levoit_humidifier_uart_protocol_notes.md](levoit_humidifier_uart_protocol_notes.md). The appliance board must retain its original level shifting; do not connect a 5 V UART signal directly to an ESP32 GPIO.
+
+## ESPHome Device Builder configuration
+
+[levoit-vesync-classic-300s-humidifier.yaml](levoit-vesync-classic-300s-humidifier.yaml) is the single, complete user configuration. In ESPHome Device Builder, replace the device YAML with that file's entire contents, then provide every value listed in [secrets.example.yaml](secrets.example.yaml) through Device Builder's `secrets.yaml` file. Do not combine it with fragments elsewhere in this README or copy `levoit-classic-300s-ci.yaml`, which is only for repository CI.
+
+The user configuration loads the component from `github://MikeG3D2/esphome-levoit-humidifier@main` and uses `refresh: 0s` so Device Builder fetches the current schema required by the no-water and manual-mist-level entities. Once these changes have a release tag, the sample can pin that tag instead of following `main`.
 
 ## Disassembly
 
@@ -117,7 +124,7 @@ cmp classic300s-stock-a.bin classic300s-stock-b.bin
 
 ### Compile and flash ESPHome
 
-Copy `secrets.example.yaml` to `secrets.yaml`, replace every placeholder, then validate and compile the supplied configuration:
+Copy `secrets.example.yaml` to `secrets.yaml`, replace every placeholder, then validate and compile the same complete configuration used by Device Builder:
 
 ```bash
 cp secrets.example.yaml secrets.yaml
@@ -148,67 +155,9 @@ python3 -m esptool --chip esp32 --port "$PORT" verify-flash 0x000000 classic300s
 
 Disconnect power, make sure IO0 is no longer grounded, and power-cycle the board. Restoration depends on the ESP32's security settings still permitting serial writes, which is another reason to make and verify the backup before the first ESPHome upload.
 
-## External component source
-
-Repository-local validation and compilation use the checked-out component:
-
-```yaml
-external_components:
-  - source:
-      type: local
-      path: components
-    components: [levoit_classic_300s]
-```
-
-Configurations in another repository should pin a published release tag or immutable commit. Replace the placeholder only with a ref that exists in this repository; do not follow the moving `main` branch for an appliance controller:
-
-```yaml
-external_components:
-  - source: github://MikeG3D2/esphome-levoit-humidifier@<release-tag-or-commit>
-    components: [levoit_classic_300s]
-```
-
-This repository does not yet have a release tag for these fixes. Creating and publishing one is a separate release action.
-
-## Configuration
-
-```yaml
-uart:
-  id: humidifier_uart
-  tx_pin: GPIO17
-  rx_pin: GPIO16
-  baud_rate: 9600
-
-levoit_classic_300s:
-  uart_id: humidifier_uart
-  update_interval: 30s
-  command_interval: 100ms
-  status_response_timeout: 5s
-  humidifier:
-    name: Humidifier
-  mode:
-    name: Mode
-  target_humidity:
-    name: Target humidity
-  night_light:
-    name: Night light
-    gamma_correct: 1.0
-    default_transition_length: 0s
-  current_humidity:
-    name: Current humidity
-  temperature:
-    name: Temperature
-  tank_lifted:
-    name: Tank lifted
-  communication_problem:
-    name: MCU communication problem
-  raw_status:
-    name: Raw MCU status
-```
-
 `command_interval` spaces frames sent to the main MCU. After a control command, the module automatically requests authoritative status instead of assuming that the MCU accepted the requested state. Duplicate pending status requests are coalesced.
 
-`status_response_timeout` starts when a status request is actually transmitted and defaults to 5 seconds. This is deliberately much longer than the roughly 40 ms needed to transmit a request and full status frame at 9600 baud, while remaining well below the default 30-second polling interval. A timeout raises the component warning state and, when configured, `communication_problem`; the next valid status clears both. Last-known entity values remain published because ESPHome 2026.7.1 does not provide a common safe unavailable-state operation across fan, select, number, light, and sensor entities.
+The current component uses its built-in five-second status-response timeout. This is deliberately much longer than the roughly 40 ms needed to transmit a request and full status frame at 9600 baud, while remaining well below the default 30-second polling interval. A timeout raises the component warning state, and the next valid status clears it. Last-known entity values remain published because ESPHome 2026.7.1 does not provide a common safe unavailable-state operation across fan, select, number, light, and sensor entities.
 
 ### Capturing unmapped states
 
@@ -225,7 +174,7 @@ logger:
 
 View the logs through the ESPHome Device Builder or `esphome logs`. The component records every valid transmitted and received frame, while `baud_rate: 0` keeps UART0 quiet for flashing and recovery. `VERY_VERBOSE` logging can affect performance and API stability, so restore the normal `DEBUG` logger after collecting captures.
 
-Change one physical state at a time and save the complete before/after frames. An unrecognized operating-mode byte is reported as `Unknown` instead of being guessed as Auto; its exact value remains visible in `raw_status` and the frame log.
+Change one physical state at a time and save the complete before/after frames. An unrecognized operating-mode byte is logged and does not replace the last valid Auto/Manual entity state; its exact value remains visible in `raw_status` and the frame log.
 
 ## Protocol design
 
@@ -247,7 +196,7 @@ Home Assistant entities
 
 Frames begin with `A5`, include a two-byte little-endian payload length, and satisfy `sum(all frame bytes) & 0xFF == 0xFF`. The streaming parser ignores noise, accepts fragmented input, bounds buffered data to the 64-byte maximum payload plus six framing bytes, checks checksums, and recovers by retaining the next possible preamble after malformed or truncated input. A valid frame already buffered behind a malformed candidate is emitted immediately.
 
-Command normalization is policy, separate from captured wire facts: auto humidity clamps to 30–80%, manual mist clamps to levels 1–9, and night-light brightness quantizes to off/50%/100%. The C++ production layer and Python reverse-engineering scaffold share those rules. Status bytes are never normalized: invalid targets and unknown modes remain unchanged in `raw_status` and logs, while invalid targets are withheld from the Number entity and cannot replace the last valid auto target.
+Command normalization is policy, separate from captured wire facts: auto humidity clamps to 30–80%, manual mist clamps to levels 1–9, and night-light brightness quantizes to off/50%/100%. The C++ production layer and Python reverse-engineering scaffold share those rules. Status bytes are never normalized: invalid targets and unknown modes remain unchanged in `raw_status` and logs, while invalid targets are withheld from the Number entity and unknown modes cannot replace the last valid Auto/Manual state.
 
 ## Tests
 
@@ -267,10 +216,7 @@ The C++ tests cover captured frame reproduction, every command builder, incremen
 
 The remaining work requires controlled captures, not guesses:
 
-1. Record several full status frames with the tank seated and filled.
-2. Trigger the out-of-water warning with the tank still seated.
-3. Diff only status bytes D0–D16 and repeat to confirm the candidate bit.
-4. Capture entering and leaving Sleep mode and display-off independently.
-5. Add fixtures to the tests before assigning names or entities to those fields.
+1. Capture entering and leaving Sleep mode and display-off independently.
+2. Add fixtures to the tests before assigning names or entities to those fields.
 
 Please include raw frames, the exact physical state, firmware/model label, and one-variable-at-a-time capture steps with protocol contributions.

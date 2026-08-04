@@ -67,6 +67,7 @@ enum class OperatingMode : uint8_t {
 struct Status {
   bool power{false};
   bool tank_lifted{false};
+  bool no_water{false};
   uint8_t target_humidity{0};
   uint8_t current_humidity{0};
   uint8_t temperature_celsius{0};
