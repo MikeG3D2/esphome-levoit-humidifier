@@ -1,6 +1,6 @@
 import pytest
 
-from levoit_uart_parser import (
+from tools.levoit_uart_parser import (
     auto_mode_payload,
     build_frame,
     decode_status_payload,
@@ -69,12 +69,22 @@ def test_decode_captured_status():
     status = decode_status_payload(payload)
     assert status["power"] is True
     assert status["tank_lifted"] is False
+    assert status["no_water"] is False
     assert status["target_humidity_percent"] == 35
     assert status["current_humidity_percent"] == 53
     assert status["temperature_celsius"] == 24
     assert status["mode"] == "manual"
     assert status["manual_mist_level"] == 8
     assert status["night_light_brightness_percent"] == 50
+
+
+def test_decode_captured_no_water_status():
+    payload = bytes.fromhex(
+        "01 85 40 00 00 00 02 00 00 01 01 00 00 25 2F 16 00 00 64 00"
+    )
+    status = decode_status_payload(payload)
+    assert status["tank_lifted"] is False
+    assert status["no_water"] is True
 
 
 def test_decode_preserves_unknown_mode_value():

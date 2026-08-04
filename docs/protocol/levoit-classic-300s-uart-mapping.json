@@ -1,5 +1,5 @@
 {
-  "captured_date": "2026-08-02",
+  "captured_date": "2026-08-02 through 2026-08-03",
   "device": "Levoit VeSync Classic 300S humidifier",
   "baud_rate": {
     "value": 9600,
@@ -90,6 +90,8 @@
         1,
         2,
         4,
+        5,
+        8,
         9
       ],
       "confidence": "confirmed"
@@ -160,9 +162,12 @@
         "confidence": "confirmed"
       },
       "D6": {
-        "meaning": null,
-        "note": "possible warning/state flag",
-        "confidence": "unknown"
+        "meaning": "no_water_magnetic_float_open",
+        "values": {
+          "0": "water_present",
+          "1": "no_water"
+        },
+        "confidence": "confirmed"
       },
       "D7": {
         "meaning": null,
@@ -228,10 +233,10 @@
       "active_value": 1,
       "confidence": "confirmed"
     },
-    "out_of_water": {
-      "field": null,
-      "confidence": "not_mapped",
-      "note": "Requires a controlled tank-seated full-water versus tank-seated empty-water capture."
+    "no_water": {
+      "field": "D6",
+      "active_value": 1,
+      "confidence": "confirmed"
     }
   }
 }

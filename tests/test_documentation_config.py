@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 
@@ -42,3 +43,26 @@ def test_user_config_exposes_captured_water_and_mist_states() -> None:
     assert 'options=["Auto", "Manual"]' in component_schema
     assert 'options=["Auto", "Manual", "Unknown"]' not in component_schema
     assert 'publish_state("Unknown")' not in component_cpp
+
+
+def test_protocol_artifacts_are_organized_and_current() -> None:
+    notes = ROOT / "docs/protocol/levoit-classic-300s-uart.md"
+    mapping_path = ROOT / "docs/protocol/levoit-classic-300s-uart-mapping.json"
+    scaffold = ROOT / "tools/levoit_uart_parser.py"
+
+    assert notes.is_file()
+    assert mapping_path.is_file()
+    assert scaffold.is_file()
+    assert not (ROOT / "levoit_humidifier_uart_protocol_notes.md").exists()
+    assert not (ROOT / "levoit_humidifier_uart_mapping.json").exists()
+    assert not (ROOT / "levoit_uart_parser.py").exists()
+
+    mapping = json.loads(mapping_path.read_text())
+    assert mapping["status_report"]["fields"]["D6"]["meaning"] == (
+        "no_water_magnetic_float_open"
+    )
+    assert mapping["warnings"]["no_water"] == {
+        "field": "D6",
+        "active_value": 1,
+        "confidence": "confirmed",
+    }

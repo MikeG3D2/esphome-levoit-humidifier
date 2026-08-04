@@ -36,7 +36,7 @@ jobs:
         run: pytest -q
 
       - name: Lint Python
-        run: ruff check components tests levoit_uart_parser.py
+        run: ruff check components tests tools
 
       - name: Validate local ESPHome component configuration
         run: esphome config levoit-classic-300s-ci.yaml

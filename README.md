@@ -37,7 +37,7 @@ The stock Wi-Fi module is an ESP32-SOLO-1 / ESP32-S0WD with 4 MB flash. The appl
 | GPIO16 | MCU → ESP32 | Responses and status |
 | GPIO1 / GPIO3 | — | UART0, retained for flashing/recovery |
 
-The FP1 connector and captured protocol are documented in [levoit_humidifier_uart_protocol_notes.md](levoit_humidifier_uart_protocol_notes.md). The appliance board must retain its original level shifting; do not connect a 5 V UART signal directly to an ESP32 GPIO.
+The FP1 connector and captured protocol are documented in the [UART protocol notes](docs/protocol/levoit-classic-300s-uart.md). A [machine-readable mapping](docs/protocol/levoit-classic-300s-uart-mapping.json) and [Python protocol scaffold](tools/levoit_uart_parser.py) are also maintained for capture analysis. The appliance board must retain its original level shifting; do not connect a 5 V UART signal directly to an ESP32 GPIO.
 
 ## ESPHome Device Builder configuration
 

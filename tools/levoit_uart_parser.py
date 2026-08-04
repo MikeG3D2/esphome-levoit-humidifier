@@ -88,6 +88,7 @@ def decode_status_payload(payload: bytes) -> dict[str, int | str | bool | None]:
     return {
         "power": bool(d[4]),
         "tank_lifted": bool(d[5]),
+        "no_water": bool(d[6]),
         "target_humidity_percent": d[10],
         "target_humidity_valid": is_valid_target_humidity(d[10]),
         "current_humidity_percent": d[11],
@@ -95,6 +96,5 @@ def decode_status_payload(payload: bytes) -> dict[str, int | str | bool | None]:
         "mode": {0: "auto", 1: "manual"}.get(d[13], f"unknown_{d[13]}"),
         "manual_mist_level": d[14],
         "night_light_brightness_percent": d[15],
-        "out_of_water": None,  # Not mapped yet.
         "raw_state_bytes": d.hex(" "),
     }
