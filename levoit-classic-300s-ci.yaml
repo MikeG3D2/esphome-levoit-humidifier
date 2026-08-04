@@ -1,12 +1,7 @@
-substitutions:
-  device_name: levoit-classic-300s
-  friendly_name: Levoit Classic 300S
-
 esphome:
-  name: ${device_name}
-  friendly_name: ${friendly_name}
+  name: levoit-classic-300s-ci
+  friendly_name: Levoit Classic 300S CI
 
-# Stock module: ESP32-SOLO-1 / ESP32-S0WD, single core, 4 MB flash.
 esp32:
   variant: esp32
   flash_size: 4MB
@@ -22,30 +17,10 @@ external_components:
       path: components
     components: [levoit_classic_300s]
 
-# Keep UART0 quiet and retain GPIO1/GPIO3 for flashing/recovery.
-# Runtime logs remain available through the ESPHome API.
 logger:
   level: DEBUG
   baud_rate: 0
 
-api:
-  encryption:
-    key: !secret api_encryption_key
-
-ota:
-  - platform: esphome
-    password: !secret ota_password
-
-wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-  ap:
-    ssid: "${friendly_name} Fallback"
-    password: !secret fallback_ap_password
-
-captive_portal:
-
-# Stock ESP32 -> main MCU UART. GPIO names are from the ESP32's perspective.
 uart:
   id: humidifier_uart
   tx_pin: GPIO17
@@ -54,40 +29,29 @@ uart:
   data_bits: 8
   parity: NONE
   stop_bits: 1
-  rx_buffer_size: 512
 
 levoit_classic_300s:
-  id: classic_300s
   uart_id: humidifier_uart
   update_interval: 30s
   command_interval: 100ms
   status_response_timeout: 5s
-
   humidifier:
     name: Humidifier
-
   mode:
     name: Mode
-
   target_humidity:
     name: Target humidity
-
   night_light:
     name: Night light
     gamma_correct: 1.0
     default_transition_length: 0s
-
   current_humidity:
     name: Current humidity
-
   temperature:
     name: Temperature
-
   tank_lifted:
     name: Tank lifted
-
   communication_problem:
     name: MCU communication problem
-
   raw_status:
     name: Raw MCU status

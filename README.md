@@ -18,6 +18,7 @@ This project is based on UART captures from a Classic 300S and follows the exter
 | Temperature | Sensor | Implemented; byte is believed to be °C |
 | Night light off/50%/100% | Light | Implemented; other brightness values are quantized |
 | Tank lifted/interlock open | Problem binary sensor | Implemented |
+| MCU communication loss | Optional problem binary sensor + component warning | Implemented |
 | Raw 17-byte MCU state | Diagnostic text sensor | Implemented |
 | Out-of-water warning | — | Not mapped yet |
 | Sleep mode/display control | — | Not mapped yet |
@@ -51,15 +52,7 @@ The FP1 connector and captured protocol are documented in [levoit_humidifier_uar
 4. Flash the factory image using your established recovery connection.
 5. Keep the appliance open only as long as needed to confirm Wi-Fi, API connectivity, UART status frames, and control. Disconnect mains before reassembly.
 
-ESPHome configurations can consume the published component with:
-
-```yaml
-external_components:
-  - source: github://MikeG3D2/esphome-levoit-humidifier@main
-    components: [levoit_classic_300s]
-```
-
-For local development, replace the source above with:
+Repository-local validation and compilation use the checked-out component:
 
 ```yaml
 external_components:
@@ -68,6 +61,16 @@ external_components:
       path: components
     components: [levoit_classic_300s]
 ```
+
+Configurations in another repository should pin a published release tag or immutable commit. Replace the placeholder only with a ref that exists in this repository; do not follow the moving `main` branch for an appliance controller:
+
+```yaml
+external_components:
+  - source: github://MikeG3D2/esphome-levoit-humidifier@<release-tag-or-commit>
+    components: [levoit_classic_300s]
+```
+
+This repository does not yet have a release tag for these fixes. Creating and publishing one is a separate release action.
 
 ## Configuration
 
@@ -82,6 +85,7 @@ levoit_classic_300s:
   uart_id: humidifier_uart
   update_interval: 30s
   command_interval: 100ms
+  status_response_timeout: 5s
   humidifier:
     name: Humidifier
   mode:
@@ -98,11 +102,15 @@ levoit_classic_300s:
     name: Temperature
   tank_lifted:
     name: Tank lifted
+  communication_problem:
+    name: MCU communication problem
   raw_status:
     name: Raw MCU status
 ```
 
-`command_interval` spaces frames sent to the main MCU. After a control command, the module automatically requests authoritative status instead of assuming that the MCU accepted the requested state.
+`command_interval` spaces frames sent to the main MCU. After a control command, the module automatically requests authoritative status instead of assuming that the MCU accepted the requested state. Duplicate pending status requests are coalesced.
+
+`status_response_timeout` starts when a status request is actually transmitted and defaults to 5 seconds. This is deliberately much longer than the roughly 40 ms needed to transmit a request and full status frame at 9600 baud, while remaining well below the default 30-second polling interval. A timeout raises the component warning state and, when configured, `communication_problem`; the next valid status clears both. Last-known entity values remain published because ESPHome 2026.7.1 does not provide a common safe unavailable-state operation across fan, select, number, light, and sensor entities.
 
 ### Capturing unmapped states
 
@@ -139,7 +147,9 @@ Home Assistant entities
   9600-baud appliance UART
 ```
 
-Frames begin with `A5`, include a two-byte little-endian payload length, and satisfy `sum(all frame bytes) & 0xFF == 0xFF`. The streaming parser ignores noise, accepts fragmented input, bounds payload length, checks checksums, and resumes after malformed frames.
+Frames begin with `A5`, include a two-byte little-endian payload length, and satisfy `sum(all frame bytes) & 0xFF == 0xFF`. The streaming parser ignores noise, accepts fragmented input, bounds buffered data to the 64-byte maximum payload plus six framing bytes, checks checksums, and recovers by retaining the next possible preamble after malformed or truncated input. A valid frame already buffered behind a malformed candidate is emitted immediately.
+
+Command normalization is policy, separate from captured wire facts: auto humidity clamps to 30–80%, manual mist clamps to levels 1–9, and night-light brightness quantizes to off/50%/100%. The C++ production layer and Python reverse-engineering scaffold share those rules. Status bytes are never normalized: invalid targets and unknown modes remain unchanged in `raw_status` and logs, while invalid targets are withheld from the Number entity and cannot replace the last valid auto target.
 
 ## Tests
 
@@ -147,10 +157,13 @@ The protocol layer has no ESPHome dependency and can be tested on the host:
 
 ```bash
 bash tests/run_cpp_tests.sh
+bash tests/run_cpp_sanitizers.sh
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q
+esphome config levoit-classic-300s-ci.yaml
+esphome compile levoit-classic-300s-ci.yaml
 ```
 
-The C++ tests cover captured frame reproduction, incremental parsing, checksum failures and recovery, and status decoding. The Python reverse-engineering scaffold has matching regression tests.
+The C++ tests cover captured frame reproduction, every command builder, incremental parsing, malformed-stream recovery, bounded buffering, status decoding, and communication-health behavior. The Python reverse-engineering scaffold has matching normalization and regression tests. CI pins ESPHome 2026.7.1 and compiles the checked-out local component without secrets.
 
 ## Reverse-engineering next steps
 

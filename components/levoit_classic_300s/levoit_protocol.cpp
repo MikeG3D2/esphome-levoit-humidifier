@@ -10,34 +10,75 @@ ParseResult FrameParser::push(uint8_t byte, Frame &frame) {
   }
 
   this->buffer_.push_back(byte);
-  if (this->buffer_.size() == 5) {
+  ParseResult recovery_result = ParseResult::NONE;
+
+  while (!this->buffer_.empty()) {
+    const auto preamble = std::find(this->buffer_.begin(), this->buffer_.end(), PREAMBLE);
+    this->buffer_.erase(this->buffer_.begin(), preamble);
+    if (this->buffer_.empty() || this->buffer_.size() < 5) {
+      return recovery_result;
+    }
+
     const size_t payload_length = this->buffer_[3] | (static_cast<size_t>(this->buffer_[4]) << 8U);
     if (payload_length > MAX_PAYLOAD_LENGTH) {
-      this->reset();
-      return ParseResult::LENGTH_ERROR;
+      recovery_result = ParseResult::LENGTH_ERROR;
+      this->buffer_.erase(this->buffer_.begin());
+      continue;
     }
-    this->expected_length_ = 6 + payload_length;
+    const size_t expected_length = 6 + payload_length;
+
+    if (this->buffer_.size() < expected_length) {
+      // A malformed/truncated candidate must not hide a complete valid frame
+      // that is already buffered behind it. A5 inside an otherwise valid
+      // candidate remains payload because the outer candidate is tried first
+      // once it reaches its declared length.
+      bool found_complete_suffix = false;
+      for (size_t offset = 1; offset + 5 <= this->buffer_.size(); offset++) {
+        if (this->buffer_[offset] != PREAMBLE) {
+          continue;
+        }
+        const size_t suffix_payload_length =
+            this->buffer_[offset + 3] | (static_cast<size_t>(this->buffer_[offset + 4]) << 8U);
+        if (suffix_payload_length > MAX_PAYLOAD_LENGTH) {
+          continue;
+        }
+        const size_t suffix_length = 6 + suffix_payload_length;
+        if (offset + suffix_length > this->buffer_.size()) {
+          continue;
+        }
+        const std::vector<uint8_t> suffix(this->buffer_.begin() + offset,
+                                          this->buffer_.begin() + offset + suffix_length);
+        if (has_valid_checksum(suffix)) {
+          this->buffer_.erase(this->buffer_.begin(), this->buffer_.begin() + offset);
+          found_complete_suffix = true;
+          break;
+        }
+      }
+      if (found_complete_suffix) {
+        continue;
+      }
+      return recovery_result;
+    }
+
+    const std::vector<uint8_t> candidate(this->buffer_.begin(), this->buffer_.begin() + expected_length);
+    if (!has_valid_checksum(candidate)) {
+      recovery_result = ParseResult::CHECKSUM_ERROR;
+      this->buffer_.erase(this->buffer_.begin());
+      continue;
+    }
+
+    frame.type = candidate[1];
+    frame.sequence = candidate[2];
+    frame.payload.assign(candidate.begin() + 6, candidate.end());
+    this->buffer_.erase(this->buffer_.begin(), this->buffer_.begin() + expected_length);
+    return ParseResult::FRAME;
   }
 
-  if (this->expected_length_ == 0 || this->buffer_.size() < this->expected_length_) {
-    return ParseResult::NONE;
-  }
-
-  if (!has_valid_checksum(this->buffer_)) {
-    this->reset();
-    return ParseResult::CHECKSUM_ERROR;
-  }
-
-  frame.type = this->buffer_[1];
-  frame.sequence = this->buffer_[2];
-  frame.payload.assign(this->buffer_.begin() + 6, this->buffer_.end());
-  this->reset();
-  return ParseResult::FRAME;
+  return recovery_result;
 }
 
 void FrameParser::reset() {
   this->buffer_.clear();
-  this->expected_length_ = 0;
 }
 
 uint8_t checksum(const std::vector<uint8_t> &bytes) {
@@ -70,17 +111,17 @@ std::vector<uint8_t> build_frame(uint8_t type, uint8_t sequence, const std::vect
 std::vector<uint8_t> power_payload(bool on) { return {0x01, 0x00, 0xA0, 0x00, static_cast<uint8_t>(on)}; }
 
 std::vector<uint8_t> night_light_payload(uint8_t percent) {
-  const uint8_t confirmed_percent = percent == 0 ? 0 : (percent <= 50 ? 50 : 100);
+  const uint8_t confirmed_percent = normalize_night_light_percent(percent);
   return {0x01, 0x03, 0xA0, 0x00, 0x01, confirmed_percent};
 }
 
 std::vector<uint8_t> manual_mist_payload(uint8_t level) {
-  level = std::max<uint8_t>(1, std::min<uint8_t>(9, level));
+  level = normalize_mist_level(level);
   return {0x01, 0x60, 0xA2, 0x00, 0x00, 0x01, level};
 }
 
 std::vector<uint8_t> auto_mode_payload(uint8_t target_humidity) {
-  target_humidity = std::max<uint8_t>(5, std::min<uint8_t>(250, target_humidity));
+  target_humidity = normalize_target_humidity(target_humidity);
   return {0x01, 0x80, 0x40, 0x00, target_humidity, static_cast<uint8_t>(target_humidity - 5),
           static_cast<uint8_t>(target_humidity + 5), 0x09, 0x05, 0x01};
 }

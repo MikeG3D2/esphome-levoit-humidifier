@@ -18,13 +18,28 @@ jobs:
           python-version: "3.12"
 
       - name: Install Python test tools
-        run: python -m pip install pytest ruff
+        run: python -m pip install esphome==2026.7.1 pytest ruff
+
+      - name: Cache ESPHome toolchains
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/esphome
+          key: esphome-2026.7.1-${{ runner.os }}-${{ hashFiles('levoit-classic-300s-ci.yaml') }}
 
       - name: Test C++ protocol implementation
         run: bash tests/run_cpp_tests.sh
+
+      - name: Test C++ with address and undefined-behavior sanitizers
+        run: bash tests/run_cpp_sanitizers.sh
 
       - name: Test Python protocol scaffold
         run: pytest -q
 
       - name: Lint Python
         run: ruff check components tests levoit_uart_parser.py
+
+      - name: Validate local ESPHome component configuration
+        run: esphome config levoit-classic-300s-ci.yaml
+
+      - name: Compile local ESPHome component firmware
+        run: esphome compile levoit-classic-300s-ci.yaml

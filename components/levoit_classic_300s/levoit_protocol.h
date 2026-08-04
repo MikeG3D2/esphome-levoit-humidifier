@@ -12,6 +12,28 @@ constexpr uint8_t COMMAND_FRAME_TYPE = 0x22;
 constexpr uint8_t STATUS_FRAME_TYPE = 0x02;
 constexpr uint8_t RESPONSE_FRAME_TYPE = 0x12;
 constexpr size_t MAX_PAYLOAD_LENGTH = 64;
+constexpr uint8_t MIN_TARGET_HUMIDITY = 30;
+constexpr uint8_t MAX_TARGET_HUMIDITY = 80;
+constexpr uint8_t MIN_MIST_LEVEL = 1;
+constexpr uint8_t MAX_MIST_LEVEL = 9;
+
+constexpr bool is_valid_target_humidity(uint8_t target_humidity) {
+  return target_humidity >= MIN_TARGET_HUMIDITY && target_humidity <= MAX_TARGET_HUMIDITY;
+}
+
+constexpr uint8_t normalize_target_humidity(uint8_t target_humidity) {
+  return target_humidity < MIN_TARGET_HUMIDITY
+             ? MIN_TARGET_HUMIDITY
+             : (target_humidity > MAX_TARGET_HUMIDITY ? MAX_TARGET_HUMIDITY : target_humidity);
+}
+
+constexpr uint8_t normalize_mist_level(uint8_t level) {
+  return level < MIN_MIST_LEVEL ? MIN_MIST_LEVEL : (level > MAX_MIST_LEVEL ? MAX_MIST_LEVEL : level);
+}
+
+constexpr uint8_t normalize_night_light_percent(uint8_t percent) {
+  return percent == 0 ? 0 : (percent <= 50 ? 50 : 100);
+}
 
 struct Frame {
   uint8_t type{0};
@@ -30,10 +52,10 @@ class FrameParser {
  public:
   ParseResult push(uint8_t byte, Frame &frame);
   void reset();
+  size_t buffered_size() const { return this->buffer_.size(); }
 
  protected:
   std::vector<uint8_t> buffer_;
-  size_t expected_length_{0};
 };
 
 enum class OperatingMode : uint8_t {

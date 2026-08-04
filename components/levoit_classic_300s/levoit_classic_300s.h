@@ -11,6 +11,7 @@
 #include "esphome/core/component.h"
 
 #include "levoit_protocol.h"
+#include "communication_state.h"
 
 #include <cstdint>
 #include <deque>
@@ -71,6 +72,7 @@ class LevoitClassic300S final : public PollingComponent, public uart::UARTDevice
   float get_setup_priority() const override { return setup_priority::DATA; }
 
   void set_command_interval(uint32_t command_interval) { this->command_interval_ = command_interval; }
+  void set_status_response_timeout(uint32_t timeout) { this->communication_state_.set_response_timeout(timeout); }
   void set_humidifier(LevoitHumidifierFan *humidifier) { this->humidifier_ = humidifier; }
   void set_mode_select(LevoitModeSelect *mode_select) { this->mode_select_ = mode_select; }
   void set_target_humidity_number(LevoitTargetHumidityNumber *number) { this->target_humidity_number_ = number; }
@@ -78,6 +80,9 @@ class LevoitClassic300S final : public PollingComponent, public uart::UARTDevice
   void set_current_humidity_sensor(sensor::Sensor *sensor) { this->current_humidity_sensor_ = sensor; }
   void set_temperature_sensor(sensor::Sensor *sensor) { this->temperature_sensor_ = sensor; }
   void set_tank_lifted_binary_sensor(binary_sensor::BinarySensor *sensor) { this->tank_lifted_sensor_ = sensor; }
+  void set_communication_problem_binary_sensor(binary_sensor::BinarySensor *sensor) {
+    this->communication_problem_sensor_ = sensor;
+  }
   void set_raw_status_text_sensor(text_sensor::TextSensor *sensor) { this->raw_status_sensor_ = sensor; }
 
   void set_power(bool on);
@@ -86,14 +91,21 @@ class LevoitClassic300S final : public PollingComponent, public uart::UARTDevice
   void set_night_light_brightness(uint8_t percent);
 
  protected:
-  void enqueue_command_(const std::vector<uint8_t> &payload, bool refresh_after = true);
-  void request_status_();
+  struct QueuedCommand {
+    std::vector<uint8_t> frame;
+    bool status_request{false};
+  };
+
+  void enqueue_command_(const std::vector<uint8_t> &payload, bool refresh_after = true,
+                        bool status_request = false);
+  void request_status_(bool require_fresh_response = false);
   void process_frame_(const protocol::Frame &frame);
   void publish_status_(const protocol::Status &status);
   static std::string hex_(const std::array<uint8_t, 17> &bytes);
 
   protocol::FrameParser parser_;
-  std::deque<std::vector<uint8_t>> command_queue_;
+  CommunicationState communication_state_{5000};
+  std::deque<QueuedCommand> command_queue_;
   uint8_t next_sequence_{0};
   uint32_t command_interval_{100};
   uint32_t last_command_at_{0};
@@ -109,6 +121,7 @@ class LevoitClassic300S final : public PollingComponent, public uart::UARTDevice
   sensor::Sensor *current_humidity_sensor_{nullptr};
   sensor::Sensor *temperature_sensor_{nullptr};
   binary_sensor::BinarySensor *tank_lifted_sensor_{nullptr};
+  binary_sensor::BinarySensor *communication_problem_sensor_{nullptr};
   text_sensor::TextSensor *raw_status_sensor_{nullptr};
 };
 

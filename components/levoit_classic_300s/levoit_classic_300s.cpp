@@ -67,7 +67,7 @@ void LevoitNightLight::write_state(light::LightState *state) {
 }
 
 void LevoitNightLight::sync_brightness(uint8_t percent) {
-  percent = percent == 0 ? 0 : (percent <= 50 ? 50 : 100);
+  percent = protocol::normalize_night_light_percent(percent);
   this->last_commanded_percent_ = percent;
   if (this->state_ == nullptr) {
     return;
@@ -82,6 +82,9 @@ void LevoitNightLight::sync_brightness(uint8_t percent) {
 }
 
 void LevoitClassic300S::setup() {
+  if (this->communication_problem_sensor_ != nullptr) {
+    this->communication_problem_sensor_->publish_initial_state(false);
+  }
   this->set_timeout("initial_status", 1000, [this]() { this->request_status_(); });
 }
 
@@ -103,24 +106,35 @@ void LevoitClassic300S::loop() {
     }
   }
 
+  const uint32_t now = millis();
+  if (this->communication_state_.check_timeout(now)) {
+    ESP_LOGW(TAG, "MCU did not return a valid status before the response timeout");
+    this->status_set_warning("MCU status response timeout");
+    if (this->communication_problem_sensor_ != nullptr) {
+      this->communication_problem_sensor_->publish_state(true);
+    }
+  }
+
   if (this->command_queue_.empty()) {
     return;
   }
-  const uint32_t now = millis();
   if (this->has_sent_command_ && now - this->last_command_at_ < this->command_interval_) {
     return;
   }
 
-  const auto &frame = this->command_queue_.front();
-  ESP_LOGVV(TAG, "Sending frame: %s", format_hex_pretty(frame).c_str());
-  this->write_array(frame);
+  const auto &command = this->command_queue_.front();
+  ESP_LOGVV(TAG, "Sending frame: %s", format_hex_pretty(command.frame).c_str());
+  this->write_array(command.frame);
+  if (command.status_request) {
+    this->communication_state_.status_request_transmitted(now);
+  }
   this->command_queue_.pop_front();
   this->last_command_at_ = now;
   this->has_sent_command_ = true;
 
   if (this->command_queue_.empty() && this->refresh_after_commands_) {
     this->refresh_after_commands_ = false;
-    this->request_status_();
+    this->request_status_(true);
   }
 }
 
@@ -130,6 +144,8 @@ void LevoitClassic300S::dump_config() {
   ESP_LOGCONFIG(TAG, "Levoit Classic 300S:");
   LOG_UPDATE_INTERVAL(this);
   ESP_LOGCONFIG(TAG, "  Command interval: %lu ms", static_cast<unsigned long>(this->command_interval_));
+  ESP_LOGCONFIG(TAG, "  Status response timeout: %lu ms",
+                static_cast<unsigned long>(this->communication_state_.response_timeout_ms()));
   ESP_LOGCONFIG(TAG, "  Humidifier entity: %s", YESNO(this->humidifier_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Mode entity: %s", YESNO(this->mode_select_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Target humidity entity: %s", YESNO(this->target_humidity_number_ != nullptr));
@@ -137,6 +153,7 @@ void LevoitClassic300S::dump_config() {
   ESP_LOGCONFIG(TAG, "  Current humidity sensor: %s", YESNO(this->current_humidity_sensor_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Temperature sensor: %s", YESNO(this->temperature_sensor_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Tank lifted sensor: %s", YESNO(this->tank_lifted_sensor_ != nullptr));
+  ESP_LOGCONFIG(TAG, "  Communication problem sensor: %s", YESNO(this->communication_problem_sensor_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Raw status sensor: %s", YESNO(this->raw_status_sensor_ != nullptr));
 }
 
@@ -144,14 +161,14 @@ void LevoitClassic300S::set_power(bool on) { this->enqueue_command_(protocol::po
 
 void LevoitClassic300S::set_manual_mist_level(uint8_t level) {
   if (level != 0) {
-    this->last_manual_mist_level_ = std::max<uint8_t>(1, std::min<uint8_t>(9, level));
+    this->last_manual_mist_level_ = protocol::normalize_mist_level(level);
   }
   this->enqueue_command_(protocol::manual_mist_payload(this->last_manual_mist_level_));
 }
 
 void LevoitClassic300S::set_auto_mode(uint8_t target_humidity) {
   if (target_humidity != 0) {
-    this->last_target_humidity_ = std::max<uint8_t>(30, std::min<uint8_t>(80, target_humidity));
+    this->last_target_humidity_ = protocol::normalize_target_humidity(target_humidity);
   }
   this->enqueue_command_(protocol::auto_mode_payload(this->last_target_humidity_));
 }
@@ -160,13 +177,18 @@ void LevoitClassic300S::set_night_light_brightness(uint8_t percent) {
   this->enqueue_command_(protocol::night_light_payload(percent));
 }
 
-void LevoitClassic300S::enqueue_command_(const std::vector<uint8_t> &payload, bool refresh_after) {
-  this->command_queue_.push_back(protocol::build_frame(protocol::COMMAND_FRAME_TYPE, this->next_sequence_++, payload));
+void LevoitClassic300S::enqueue_command_(const std::vector<uint8_t> &payload, bool refresh_after,
+                                         bool status_request) {
+  this->command_queue_.push_back(
+      {protocol::build_frame(protocol::COMMAND_FRAME_TYPE, this->next_sequence_++, payload), status_request});
   this->refresh_after_commands_ = this->refresh_after_commands_ || refresh_after;
 }
 
-void LevoitClassic300S::request_status_() {
-  this->enqueue_command_(protocol::status_request_payload(), false);
+void LevoitClassic300S::request_status_(bool require_fresh_response) {
+  if (!this->communication_state_.request_status(require_fresh_response)) {
+    return;
+  }
+  this->enqueue_command_(protocol::status_request_payload(), false, true);
 }
 
 void LevoitClassic300S::process_frame_(const protocol::Frame &frame) {
@@ -174,12 +196,26 @@ void LevoitClassic300S::process_frame_(const protocol::Frame &frame) {
             format_hex_pretty(frame.payload).c_str());
   protocol::Status status;
   if (protocol::decode_status(frame, status)) {
+    const bool request_follow_up = this->communication_state_.status_received();
+    this->status_clear_warning();
+    if (this->communication_problem_sensor_ != nullptr) {
+      this->communication_problem_sensor_->publish_state(false);
+    }
     this->publish_status_(status);
+    if (request_follow_up) {
+      this->request_status_();
+    }
   }
 }
 
 void LevoitClassic300S::publish_status_(const protocol::Status &status) {
-  this->last_target_humidity_ = status.target_humidity;
+  const bool target_humidity_valid = protocol::is_valid_target_humidity(status.target_humidity);
+  if (target_humidity_valid) {
+    this->last_target_humidity_ = status.target_humidity;
+  } else {
+    ESP_LOGW(TAG, "Ignoring out-of-range target humidity byte: %u (expected %u-%u)", status.target_humidity,
+             protocol::MIN_TARGET_HUMIDITY, protocol::MAX_TARGET_HUMIDITY);
+  }
   if (status.manual_mist_level >= 1 && status.manual_mist_level <= 9) {
     this->last_manual_mist_level_ = status.manual_mist_level;
   }
@@ -200,7 +236,7 @@ void LevoitClassic300S::publish_status_(const protocol::Status &status) {
     }
     this->mode_select_->publish_state(mode);
   }
-  if (this->target_humidity_number_ != nullptr) {
+  if (this->target_humidity_number_ != nullptr && target_humidity_valid) {
     this->target_humidity_number_->publish_state(status.target_humidity);
   }
   if (this->night_light_ != nullptr) {

@@ -35,6 +35,7 @@ AUTO_LOAD = [
 ]
 
 CONF_COMMAND_INTERVAL = "command_interval"
+CONF_STATUS_RESPONSE_TIMEOUT = "status_response_timeout"
 CONF_HUMIDIFIER = "humidifier"
 CONF_MODE = "mode"
 CONF_TARGET_HUMIDITY = "target_humidity"
@@ -42,6 +43,7 @@ CONF_NIGHT_LIGHT = "night_light"
 CONF_CURRENT_HUMIDITY = "current_humidity"
 CONF_TEMPERATURE = "temperature"
 CONF_TANK_LIFTED = "tank_lifted"
+CONF_COMMUNICATION_PROBLEM = "communication_problem"
 CONF_RAW_STATUS = "raw_status"
 
 levoit_ns = cg.esphome_ns.namespace("levoit_classic_300s")
@@ -61,6 +63,9 @@ CONFIG_SCHEMA = (
             cv.GenerateID(): cv.declare_id(LevoitClassic300S),
             cv.Optional(
                 CONF_COMMAND_INTERVAL, default="100ms"
+            ): cv.positive_time_period_milliseconds,
+            cv.Optional(
+                CONF_STATUS_RESPONSE_TIMEOUT, default="5s"
             ): cv.positive_time_period_milliseconds,
             cv.Optional(CONF_HUMIDIFIER): fan.fan_schema(
                 LevoitHumidifierFan,
@@ -101,6 +106,13 @@ CONFIG_SCHEMA = (
                 icon="mdi:cup-water",
                 entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
             ),
+            cv.Optional(
+                CONF_COMMUNICATION_PROBLEM
+            ): binary_sensor.binary_sensor_schema(
+                device_class=DEVICE_CLASS_PROBLEM,
+                icon="mdi:connection",
+                entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            ),
             cv.Optional(CONF_RAW_STATUS): text_sensor.text_sensor_schema(
                 icon="mdi:code-brackets",
                 entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
@@ -127,6 +139,7 @@ async def to_code(config):
     await cg.register_component(parent, config)
     await uart.register_uart_device(parent, config)
     cg.add(parent.set_command_interval(config[CONF_COMMAND_INTERVAL]))
+    cg.add(parent.set_status_response_timeout(config[CONF_STATUS_RESPONSE_TIMEOUT]))
 
     if entity_config := config.get(CONF_HUMIDIFIER):
         entity = await fan.new_fan(entity_config, parent)
@@ -163,6 +176,10 @@ async def to_code(config):
     if entity_config := config.get(CONF_TANK_LIFTED):
         entity = await binary_sensor.new_binary_sensor(entity_config)
         cg.add(parent.set_tank_lifted_binary_sensor(entity))
+
+    if entity_config := config.get(CONF_COMMUNICATION_PROBLEM):
+        entity = await binary_sensor.new_binary_sensor(entity_config)
+        cg.add(parent.set_communication_problem_binary_sensor(entity))
 
     if entity_config := config.get(CONF_RAW_STATUS):
         entity = await text_sensor.new_text_sensor(entity_config)

@@ -52,20 +52,17 @@ def power_payload(on: bool) -> bytes:
 
 
 def night_light_payload(percent: int) -> bytes:
-    if percent not in (0, 50, 100):
-        raise ValueError("confirmed brightness values are 0, 50, and 100")
+    percent = 0 if percent == 0 else (50 if percent <= 50 else 100)
     return bytes([0x01, 0x03, 0xA0, 0x00, 0x01, percent])
 
 
 def manual_mist_payload(level: int) -> bytes:
-    if not (0 <= level <= 0xFF):
-        raise ValueError("level must fit in one byte")
+    level = max(1, min(9, level))
     return bytes([0x01, 0x60, 0xA2, 0x00, 0x00, 0x01, level])
 
 
 def auto_mode_payload(target_humidity: int) -> bytes:
-    if not (5 <= target_humidity <= 250):
-        raise ValueError("target must allow target-5 and target+5 to fit")
+    target_humidity = max(30, min(80, target_humidity))
     return bytes([
         0x01, 0x80, 0x40, 0x00,
         target_humidity,
@@ -79,6 +76,10 @@ def status_request_payload() -> bytes:
     return bytes([0x01, 0x84, 0x40, 0x00])
 
 
+def is_valid_target_humidity(target_humidity: int) -> bool:
+    return 30 <= target_humidity <= 80
+
+
 def decode_status_payload(payload: bytes) -> dict[str, int | str | bool | None]:
     if len(payload) != 20 or payload[:3] != bytes([0x01, 0x85, 0x40]):
         raise ValueError("not a known 20-byte status payload")
@@ -88,6 +89,7 @@ def decode_status_payload(payload: bytes) -> dict[str, int | str | bool | None]:
         "power": bool(d[4]),
         "tank_lifted": bool(d[5]),
         "target_humidity_percent": d[10],
+        "target_humidity_valid": is_valid_target_humidity(d[10]),
         "current_humidity_percent": d[11],
         "temperature_celsius": d[12],
         "mode": {0: "auto", 1: "manual"}.get(d[13], f"unknown_{d[13]}"),
