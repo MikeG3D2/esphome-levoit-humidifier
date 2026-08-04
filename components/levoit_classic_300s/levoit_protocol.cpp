@@ -148,6 +148,9 @@ bool decode_status(const Frame &frame, Status &status) {
     case 1:
       status.mode = OperatingMode::MANUAL;
       break;
+    case 2:
+      status.mode = OperatingMode::SLEEP;
+      break;
     default:
       status.mode = OperatingMode::UNKNOWN;
       break;

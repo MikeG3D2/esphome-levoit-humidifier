@@ -93,7 +93,9 @@ def decode_status_payload(payload: bytes) -> dict[str, int | str | bool | None]:
         "target_humidity_valid": is_valid_target_humidity(d[10]),
         "current_humidity_percent": d[11],
         "temperature_celsius": d[12],
-        "mode": {0: "auto", 1: "manual"}.get(d[13], f"unknown_{d[13]}"),
+        "mode": {0: "auto", 1: "manual", 2: "sleep"}.get(
+            d[13], f"unknown_{d[13]}"
+        ),
         "manual_mist_level": d[14],
         "night_light_brightness_percent": d[15],
         "raw_state_bytes": d.hex(" "),

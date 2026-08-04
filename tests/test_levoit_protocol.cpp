@@ -265,13 +265,26 @@ static void test_unknown_mode_is_not_reported_as_auto() {
   const std::vector<uint8_t> payload{
       0x01, 0x85, 0x40,
       0x00, 0x00, 0x00, 0x02, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01,
-      0x23, 0x35, 0x18, 0x02, 0x08, 0x32, 0x00,
+      0x23, 0x35, 0x18, 0x03, 0x08, 0x32, 0x00,
   };
   Frame frame{0x02, 0x12, payload};
   Status status;
   assert(decode_status(frame, status));
   assert(status.mode == OperatingMode::UNKNOWN);
+  assert(status.raw[13] == 0x03);
+}
+
+static void test_repeated_capture_decodes_sleep_mode() {
+  const std::vector<uint8_t> payload{
+      0x01, 0x85, 0x40,
+      0x00, 0x00, 0x00, 0x02, 0x01, 0x00, 0x00, 0x00, 0x64, 0x01,
+      0x35, 0x32, 0x17, 0x02, 0x05, 0x00, 0x00,
+  };
+  Status status;
+  assert(decode_status(Frame{0x02, 0x12, payload}, status));
+  assert(status.mode == OperatingMode::SLEEP);
   assert(status.raw[13] == 0x02);
+  assert(status.manual_mist_level == 5);
 }
 
 static void test_status_preserves_invalid_target_for_diagnostics() {
@@ -308,6 +321,7 @@ int main() {
   test_captured_no_water_status_is_separate_from_tank_lifted();
   test_captured_refill_clears_no_water_with_tank_seated();
   test_status_decode_rejects_unrecognized_frames();
+  test_repeated_capture_decodes_sleep_mode();
   test_unknown_mode_is_not_reported_as_auto();
   test_status_preserves_invalid_target_for_diagnostics();
   std::cout << "All Levoit protocol tests passed\n";

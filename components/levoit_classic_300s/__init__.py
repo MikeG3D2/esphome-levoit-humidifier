@@ -162,7 +162,7 @@ async def to_code(config):
 
     if entity_config := config.get(CONF_MODE):
         entity = await select.new_select(
-            entity_config, parent, options=["Auto", "Manual"]
+            entity_config, parent, options=["Auto", "Manual", "Sleep"]
         )
         cg.add(parent.set_mode_select(entity))
 

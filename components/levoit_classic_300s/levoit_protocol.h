@@ -61,6 +61,7 @@ class FrameParser {
 enum class OperatingMode : uint8_t {
   AUTO = 0,
   MANUAL = 1,
+  SLEEP = 2,
   UNKNOWN = 0xFF,
 };
 

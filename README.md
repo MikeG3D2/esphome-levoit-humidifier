@@ -12,17 +12,17 @@ This project is based on UART captures from a Classic 300S and follows the exter
 | Function | Home Assistant entity | Status |
 |---|---|---|
 | Power | Fan | Implemented |
-| Manual mist level 1–9 | Number + Fan speed | Implemented; levels 1, 2, 4, 5, 8, and 9 observed directly |
-| Manual/auto mode | Select | Implemented; unmapped wire values are logged without changing the entity |
+| Manual mist level 1–9 | Number + Fan speed | Implemented; every level observed directly |
+| Operating mode | Select | Auto/Manual controllable; Sleep reported but remote command not mapped |
 | Auto target humidity, 30–80% | Number | Implemented; arbitrary targets observed |
 | Current humidity | Sensor | Implemented |
 | Temperature | Sensor | Implemented; byte is believed to be °C |
-| Night light off/50%/100% | Light | Implemented; other brightness values are quantized |
+| Night light Off/Low/High | Light | Implemented; wire values are 0%/50%/100% and other brightness values are quantized |
 | Tank lifted/interlock open | Problem binary sensor | Implemented |
 | No water/magnetic float open | Problem binary sensor | Implemented; mapped to status byte D6 |
 | MCU communication loss | Optional problem binary sensor + component warning | Implemented |
 | Raw 17-byte MCU state | Diagnostic text sensor | Implemented |
-| Sleep mode/display control | — | Not mapped yet |
+| Display control | — | Not mapped yet |
 | Timers and schedules | Home Assistant automations | Intentionally handled in Home Assistant |
 
 ESPHome currently has no native entity that exports as Home Assistant's `humidifier` domain, so the device is represented with standard ESPHome fan, select, number, light, sensor, and binary-sensor entities.
@@ -216,7 +216,7 @@ The C++ tests cover captured frame reproduction, every command builder, incremen
 
 The remaining work requires controlled captures, not guesses:
 
-1. Capture entering and leaving Sleep mode and display-off independently.
-2. Add fixtures to the tests before assigning names or entities to those fields.
+1. With stock firmware, capture any ESP32-to-MCU command produced by an app Sleep/display toggle.
+2. Add fixtures to the tests before assigning controllable entities to provisional fields.
 
 Please include raw frames, the exact physical state, firmware/model label, and one-variable-at-a-time capture steps with protocol contributions.

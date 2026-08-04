@@ -91,9 +91,18 @@ def test_decode_preserves_unknown_mode_value():
     payload = bytearray.fromhex(
         "01 85 40 00 00 00 02 01 00 00 01 00 01 23 35 18 01 08 32 00"
     )
-    payload[16] = 2
+    payload[16] = 3
     status = decode_status_payload(bytes(payload))
-    assert status["mode"] == "unknown_2"
+    assert status["mode"] == "unknown_3"
+
+
+def test_decode_repeated_sleep_mode_capture():
+    payload = bytes.fromhex(
+        "01 85 40 00 00 00 02 01 00 00 00 64 01 35 32 17 02 05 00 00"
+    )
+    status = decode_status_payload(payload)
+    assert status["mode"] == "sleep"
+    assert status["manual_mist_level"] == 5
 
 
 def test_decode_marks_invalid_target_but_preserves_raw_value():

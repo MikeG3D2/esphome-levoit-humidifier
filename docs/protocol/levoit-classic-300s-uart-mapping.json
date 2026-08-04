@@ -71,8 +71,8 @@
       ],
       "values": {
         "00": "off",
-        "32": "50_percent",
-        "64": "100_percent"
+        "32": "low",
+        "64": "high"
       },
       "confidence": "confirmed"
     },
@@ -89,8 +89,11 @@
       "observed_levels": [
         1,
         2,
+        3,
         4,
         5,
+        6,
+        7,
         8,
         9
       ],
@@ -171,18 +174,21 @@
       },
       "D7": {
         "meaning": null,
-        "note": "operating flag",
+        "note": "Changed from 0x01 Auto to 0x00 in the Sleep capture; not isolated.",
         "confidence": "unknown"
       },
       "D8": {
         "meaning": null,
-        "note": "operating flag",
+        "note": "Remained 0x64 in both Sleep and Auto captures; not a direct screen-enabled flag.",
         "confidence": "unknown"
       },
       "D9": {
-        "meaning": null,
-        "note": "often follows active output state",
-        "confidence": "tentative"
+        "meaning": "mist_output_active",
+        "values": {
+          "0": "idle",
+          "1": "active"
+        },
+        "confidence": "confirmed"
       },
       "D10": {
         "meaning": "target_humidity_percent",
@@ -203,20 +209,21 @@
         "meaning": "mode",
         "values": {
           "0": "auto",
-          "1": "manual"
+          "1": "manual",
+          "2": "sleep"
         },
         "confidence": "confirmed"
       },
       "D14": {
-        "meaning": "manual_mist_level",
+        "meaning": "current_mist_level",
         "confidence": "confirmed"
       },
       "D15": {
-        "meaning": "night_light_brightness_percent",
+        "meaning": "night_light_state",
         "values": {
-          "0": 0,
-          "50": 50,
-          "100": 100
+          "0": "off",
+          "50": "low",
+          "100": "high"
         },
         "confidence": "confirmed"
       },
@@ -225,6 +232,21 @@
         "note": "reserved_or_error_candidate",
         "confidence": "unknown"
       }
+    }
+  },
+  "observations": {
+    "display_toggle": {
+      "status_bodies": [
+        "00 00 00 02 01 00 00 01 64 00 35 34 16 00 00 00 00",
+        "00 00 00 02 01 00 00 01 64 00 35 33 17 00 00 00 00",
+        "00 00 00 02 01 00 00 01 64 00 35 33 16 00 00 00 00"
+      ],
+      "candidate_transition": {
+        "screen_off_sleep": "00 00 00 02 01 00 00 00 64 01 35 32 17 02 05 00 00",
+        "auto_screen_on": "00 00 00 02 01 00 00 01 64 00 35 32 17 00 00 00 00"
+      },
+      "result": "D13_0x02_is_sleep_mode",
+      "confidence": "confirmed"
     }
   },
   "warnings": {

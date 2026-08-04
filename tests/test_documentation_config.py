@@ -40,7 +40,7 @@ def test_user_config_exposes_captured_water_and_mist_states() -> None:
     assert "no_water:" in sample
     assert 'CONF_MANUAL_MIST_LEVEL = "manual_mist_level"' in component_schema
     assert 'CONF_NO_WATER = "no_water"' in component_schema
-    assert 'options=["Auto", "Manual"]' in component_schema
+    assert 'options=["Auto", "Manual", "Sleep"]' in component_schema
     assert 'options=["Auto", "Manual", "Unknown"]' not in component_schema
     assert 'publish_state("Unknown")' not in component_cpp
 
@@ -66,3 +66,12 @@ def test_protocol_artifacts_are_organized_and_current() -> None:
         "active_value": 1,
         "confidence": "confirmed",
     }
+    assert mapping["commands"]["A260_manual_mist"]["observed_levels"] == list(
+        range(1, 10)
+    )
+    display_toggle = mapping["observations"]["display_toggle"]
+    assert display_toggle["result"] == "D13_0x02_is_sleep_mode"
+    assert display_toggle["confidence"] == "confirmed"
+    assert mapping["status_report"]["fields"]["D13"]["values"]["2"] == (
+        "sleep"
+    )

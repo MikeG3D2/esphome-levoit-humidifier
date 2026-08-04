@@ -32,6 +32,8 @@ void LevoitModeSelect::control(size_t index) {
     this->parent_->set_auto_mode(0);
   } else if (index == 1) {
     this->parent_->set_manual_mist_level(0);
+  } else if (index == 2) {
+    ESP_LOGW(TAG, "Sleep is reported by the MCU, but its remote command is not mapped");
   } else {
     ESP_LOGW(TAG, "Ignoring invalid operating mode index: %u", static_cast<unsigned>(index));
   }
@@ -236,6 +238,8 @@ void LevoitClassic300S::publish_status_(const protocol::Status &status) {
       this->mode_select_->publish_state("Auto");
     } else if (status.mode == protocol::OperatingMode::MANUAL) {
       this->mode_select_->publish_state("Manual");
+    } else if (status.mode == protocol::OperatingMode::SLEEP) {
+      this->mode_select_->publish_state("Sleep");
     } else {
       ESP_LOGW(TAG, "Unmapped operating mode byte: 0x%02X", status.raw[13]);
     }

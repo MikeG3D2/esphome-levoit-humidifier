@@ -80,8 +80,10 @@ A5 22 07 05 00 8B 01 00 A0 00 00
 | BRIGHTNESS | Action |
 |---|---|
 | `00` | Off |
-| `32` | 50% |
-| `64` | 100% |
+| `32` | Low (50% wire value) |
+| `64` | High (100% wire value) |
+
+The physical control exposes only Off, Low, and High; it is not continuously variable.
 
 ### Manual mode / mist level — command `A260`
 
@@ -89,7 +91,17 @@ A5 22 07 05 00 8B 01 00 A0 00 00
 01 60 A2 00 00 01 LEVEL
 ```
 
-Confirmed levels from controlled captures: `01`, `02`, `04`, and `09`.
+All nine levels are confirmed from controlled captures: `01` through `09`.
+
+The captures completing the previously missing levels 3, 6, and 7 were:
+
+```text
+00 00 00 02 01 00 00 01 00 01 35 31 17 01 03 00 00
+00 00 00 02 01 00 00 01 00 01 35 32 17 01 06 00 00
+00 00 00 02 01 00 00 01 00 01 35 32 17 01 07 00 00
+                                          ^^
+                                          D14
+```
 
 ### Auto mode / target humidity — command `4080`
 
@@ -136,15 +148,15 @@ Status frame payload:
 | D4 | Power | `00` off, `01` on | Confirmed |
 | D5 | Tank lifted / tank interlock open | `01` lifted, `00` seated | Confirmed |
 | D6 | No water / magnetic float open | `01` no water, `00` water present | Confirmed |
-| D7 | Unknown operating flag | Changes during operation/transitions | Unknown |
-| D8 | Unknown operating flag | Changes during operation/transitions | Unknown |
-| D9 | Unknown operating flag | Often follows active output state | Tentative |
+| D7 | Unknown operating flag | Changed with the Sleep transition, but not isolated | Unknown |
+| D8 | Unknown retained value | Remained `64` in both Sleep and Auto frames | Unknown |
+| D9 | Mist output active | `01` while misting, `00` while idle | Confirmed |
 | D10 | Target humidity | Decimal byte, e.g. `23` = 35%, `3F` = 63% | Confirmed |
 | D11 | Current humidity | Decimal byte, tracked app reading around 49–53% | Confirmed |
 | D12 | Temperature | `18` = 24; likely °C | Strong |
-| D13 | Mode | `00` auto, `01` manual | Confirmed |
-| D14 | Manual mist level | Exact values `01`, `04`, `09` observed | Confirmed |
-| D15 | Night-light brightness | `00`, `32`, `64` = off, 50%, 100% | Confirmed |
+| D13 | Mode | `00` Auto, `01` Manual, `02` Sleep | Confirmed |
+| D14 | Current mist level | Every exact value `01` through `09` observed; `00` while idle | Confirmed |
+| D15 | Night-light state | `00`, `32`, `64` = Off, Low, High | Confirmed |
 | D16 | Unknown / reserved / error | Usually `00` in captures | Unknown |
 
 Example status body:
@@ -225,6 +237,36 @@ Observed but not fully mapped:
 
 Do not label these without controlled captures.
 
+## Display / Screen Toggle
+
+An initial set of periodic status bodies captured around front-panel screen toggles was:
+
+```text
+00 00 00 02 01 00 00 01 64 00 35 34 16 00 00 00 00
+00 00 00 02 01 00 00 01 64 00 35 33 17 00 00 00 00
+00 00 00 02 01 00 00 01 64 00 35 33 16 00 00 00 00
+```
+
+No candidate field changed in that set: D8 remained `64`, while the only changes were current humidity and temperature.
+
+A subsequent transition produced this pair twice:
+
+```text
+Sleep/screen-off: 00 00 00 02 01 00 00 00 64 01 35 32 17 02 05 00 00
+Auto/screen-on:   00 00 00 02 01 00 00 01 64 00 35 32 17 00 00 00 00
+```
+
+The changing fields are:
+
+| Field | Sleep | Auto | Interpretation |
+|---|---:|---:|---|
+| D7 | `00` | `01` | Still unknown; changed during the transition |
+| D9 | `01` | `00` | Consistent with mist output active/idle |
+| D13 | `02` | `00` | Mode `02` is Sleep |
+| D14 | `05` | `00` | Current mist level 5 versus idle |
+
+D13 is the established operating-mode byte, and the repeated transition confirms `02 = Sleep`. D8 remained `64`, so it is not a direct screen-enabled flag. Sleep can be reported by ESPHome, but capturing a stock-app Sleep/display command on ESP32-to-MCU UART is still required before it can be controlled remotely.
+
 ## Implementation Status
 
 - Streaming frame parser and checksum validation: implemented in `components/levoit_classic_300s/levoit_protocol.*`.
@@ -234,5 +276,5 @@ Do not label these without controlled captures.
 
 ## Next Development Tasks
 
-- Identify D7–D9 and D16 through one-variable-at-a-time tests.
-- Capture sleep mode and display control independently.
+- Identify D7 and D16 through one-variable-at-a-time tests.
+- With stock firmware, capture any outbound command produced by an app Sleep/display toggle.
