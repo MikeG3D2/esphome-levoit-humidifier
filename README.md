@@ -7,7 +7,7 @@ Local, cloud-free control of the Levoit VeSync Classic 300S humidifier by replac
 This project is based on UART captures from a Classic 300S and follows the external-component layout used by [acvigue/esphome-levoit-air-purifier](https://github.com/acvigue/esphome-levoit-air-purifier).
 
 > [!WARNING]
-> This project requires opening a mains-powered appliance and replacing its firmware. Disconnect mains power before opening it. Do not probe or operate exposed mains circuitry. Back up the stock ESP32 flash before erasing it. You assume the risk of electric shock, fire, equipment damage, and loss of the original cloud firmware.
+> This project requires opening a mains-powered appliance and replacing its firmware. Disconnect mains power before opening or disassembling it. The photos show an isolated flyback AC/DC supply, and isolation between mains and the low-voltage control ground was confirmed on the photographed unit; the primary side is still hazardous whenever the appliance is plugged in. Back up the stock ESP32 flash before erasing it. You assume the risk of electric shock, fire, equipment damage, and loss of the original cloud firmware.
 
 ## What works
 
@@ -49,7 +49,7 @@ The user configuration loads the component from `github://MikeG3D2/esphome-levoi
 
 ## Disassembly
 
-Unplug the humidifier and remove the water tank before starting. Keep the mains cord unplugged for the entire disassembly, backup, and flashing process. The photos show one hardware revision; stop if your unit differs materially instead of assuming that its wiring or header pinout is identical.
+Unplug the humidifier and remove the water tank before starting. Keep the mains cord unplugged throughout disassembly. The photos show one hardware revision with an isolated flyback AC/DC supply; stop if your unit differs materially instead of assuming that its power-supply topology, isolation, wiring, or header pinout is identical.
 
 1. Turn the humidifier upside down. Remove all four rubber feet to expose one screw beneath each foot, then remove those four screws and the two visible screws beside the power-cord bracket (six bottom screws total).
 
@@ -73,9 +73,11 @@ Unplug the humidifier and remove the water tank before starting. Keep the mains 
 
 ## Back up and flash with a CP2102
 
-A CP2102 or equivalent USB-to-TTL serial adapter must use **3.3 V logic**. Never connect 5 V to the header, and never power the open appliance from mains while the USB adapter is connected.
+A CP2102 or equivalent USB-to-TTL serial adapter must use [**3.3 V UART logic**](https://docs.espressif.com/projects/esptool/en/latest/esp32/esptool/serial-connection.html). Never connect a 5 V UART signal to the header.
 
-The ESP32 needs a stable 3.3 V supply with enough capacity for its current bursts. Many CP2102 boards expose a 3.3 V pin that is intended only as a small regulator output and cannot reliably power an ESP32 or the attached control board. Use that pin only if the adapter manufacturer explicitly rates it for the load; otherwise use a separate regulated 3.3 V supply and join its ground to the adapter ground. Do not connect two power sources at once.
+The photographed unit was backed up and flashed while powered from mains after its flyback supply and low-voltage ground isolation were confirmed. For that method, connect GND, TXD, and RXD between the CP2102 and ESP32, use the low-voltage ground to strap IO0 and pulse EN as described below, and leave the CP2102's 3.3 V power pin disconnected. The appliance's isolated supply powers the ESP32. Mains voltage remains present on the supply's primary side, so keep that area physically covered or otherwise inaccessible and do not touch or probe the appliance while it is energized.
+
+Alternatively, leave the appliance unplugged and power the ESP32 from a separate regulated 3.3 V supply. The supply must handle the ESP32's current bursts; many CP2102 boards expose a 3.3 V pin intended only for light loads and cannot reliably power the ESP32 and attached control board. Use a CP2102 power pin only if its manufacturer explicitly rates it for the load. Never connect the external 3.3 V source while the appliance is mains-powered.
 
 ### Wiring
 
@@ -88,15 +90,15 @@ The `RxD0` and `TxD0` names below are from the ESP32's perspective, so the seria
 | TxD0 | RXD | Data from the ESP32 to the adapter |
 | EN | GROUND, momentarily | Reset; release after a brief pulse |
 | GROUND | GND | Common ground |
-| 3.3V | Regulated 3.3 V | Board power; never connect 5 V |
+| 3.3V | Disconnected, or regulated 3.3 V | Leave disconnected when mains-powered; otherwise use it for external board power and never connect 5 V |
 
 Soldering a temporary 0.1-inch header gives the most reliable connection. If using test hooks or pogo pins, secure them before applying power and check for shorts with a meter. Leave IO0 and EN disconnected from ground during normal operation.
 
 ### Enter the ESP32 ROM bootloader
 
-1. Disconnect 3.3 V power.
+1. Remove the selected power source: unplug mains or disconnect the external 3.3 V supply.
 2. Connect IO0 to GROUND.
-3. Apply 3.3 V power.
+3. Apply the selected power source.
 4. Briefly connect EN to GROUND, then release EN.
 5. Release IO0 from GROUND. The ESP32 remains in its serial bootloader until the next reset.
 
@@ -141,9 +143,9 @@ PORT=/dev/ttyUSB0
 esphome upload levoit-vesync-classic-300s-humidifier.yaml --device "$PORT" --upload-speed 115200
 ```
 
-After the upload completes, disconnect 3.3 V power, remove the IO0-to-ground connection, and power the board again. Runtime logging is available over the ESPHome API because this configuration deliberately disables UART0 logging.
+After the upload completes, remove the selected power source, disconnect IO0 from ground, and power the board again. Runtime logging is available over the ESPHome API because this configuration deliberately disables UART0 logging.
 
-Keep the appliance open only as long as needed to confirm Wi-Fi, API connectivity, UART status frames, and control. Disconnect all low-voltage power and the serial adapter before reassembly. Refit the display/control assembly without pinching wires, reinstall its two bracket screws, close the bottom, reinstall all six bottom screws, and replace the four rubber feet before reconnecting mains.
+Keep the appliance open only as long as needed to confirm Wi-Fi, API connectivity, UART status frames, and control. Unplug mains, disconnect any external low-voltage power, and remove the serial adapter before reassembly. Refit the display/control assembly without pinching wires, reinstall its two bracket screws, close the bottom, reinstall all six bottom screws, and replace the four rubber feet before reconnecting mains.
 
 ### Restore the stock backup
 
@@ -155,7 +157,7 @@ python3 -m esptool --chip esp32 --port "$PORT" write-flash 0x000000 classic300s-
 python3 -m esptool --chip esp32 --port "$PORT" verify-flash 0x000000 classic300s-stock-a.bin
 ```
 
-Disconnect power, make sure IO0 is no longer grounded, and power-cycle the board. Restoration depends on the ESP32's security settings still permitting serial writes, which is another reason to make and verify the backup before the first ESPHome upload.
+Remove the selected power source, make sure IO0 is no longer grounded, and power-cycle the board. Restoration depends on the ESP32's security settings still permitting serial writes, which is another reason to make and verify the backup before the first ESPHome upload.
 
 `command_interval` spaces frames sent to the main MCU. After a control command, the module automatically requests authoritative status instead of assuming that the MCU accepted the requested state. Duplicate pending status requests are coalesced.
 
