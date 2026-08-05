@@ -7,6 +7,7 @@ from esphome.components import (
     number,
     select,
     sensor,
+    switch,
     text_sensor,
     uart,
 )
@@ -31,6 +32,7 @@ AUTO_LOAD = [
     "number",
     "select",
     "sensor",
+    "switch",
     "text_sensor",
 ]
 
@@ -41,6 +43,8 @@ CONF_MODE = "mode"
 CONF_TARGET_HUMIDITY = "target_humidity"
 CONF_MANUAL_MIST_LEVEL = "manual_mist_level"
 CONF_NIGHT_LIGHT = "night_light"
+CONF_DISPLAY = "display"
+CONF_AUTO_STOP = "auto_stop"
 CONF_CURRENT_HUMIDITY = "current_humidity"
 CONF_TEMPERATURE = "temperature"
 CONF_TANK_LIFTED = "tank_lifted"
@@ -61,6 +65,8 @@ LevoitManualMistLevelNumber = levoit_ns.class_(
     "LevoitManualMistLevelNumber", number.Number
 )
 LevoitNightLight = levoit_ns.class_("LevoitNightLight", light.LightOutput)
+LevoitDisplaySwitch = levoit_ns.class_("LevoitDisplaySwitch", switch.Switch)
+LevoitAutoStopSwitch = levoit_ns.class_("LevoitAutoStopSwitch", switch.Switch)
 
 CONFIG_SCHEMA = (
     cv.Schema(
@@ -99,6 +105,18 @@ CONFIG_SCHEMA = (
                 icon="mdi:lightbulb-night",
                 default_restore_mode="ALWAYS_OFF",
             ),
+            cv.Optional(CONF_DISPLAY): switch.switch_schema(
+                LevoitDisplaySwitch,
+                icon="mdi:monitor",
+                entity_category=ENTITY_CATEGORY_CONFIG,
+                default_restore_mode="DISABLED",
+            ),
+            cv.Optional(CONF_AUTO_STOP): switch.switch_schema(
+                LevoitAutoStopSwitch,
+                icon="mdi:stop-circle-outline",
+                entity_category=ENTITY_CATEGORY_CONFIG,
+                default_restore_mode="DISABLED",
+            ),
             cv.Optional(CONF_CURRENT_HUMIDITY): sensor.sensor_schema(
                 unit_of_measurement=UNIT_PERCENT,
                 accuracy_decimals=0,
@@ -121,9 +139,7 @@ CONFIG_SCHEMA = (
                 icon="mdi:water-alert",
                 entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
             ),
-            cv.Optional(
-                CONF_COMMUNICATION_PROBLEM
-            ): binary_sensor.binary_sensor_schema(
+            cv.Optional(CONF_COMMUNICATION_PROBLEM): binary_sensor.binary_sensor_schema(
                 device_class=DEVICE_CLASS_PROBLEM,
                 icon="mdi:connection",
                 entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
@@ -189,6 +205,14 @@ async def to_code(config):
     if entity_config := config.get(CONF_NIGHT_LIGHT):
         entity = await light.new_light(entity_config, parent)
         cg.add(parent.set_night_light(entity))
+
+    if entity_config := config.get(CONF_DISPLAY):
+        entity = await switch.new_switch(entity_config, parent)
+        cg.add(parent.set_display_switch(entity))
+
+    if entity_config := config.get(CONF_AUTO_STOP):
+        entity = await switch.new_switch(entity_config, parent)
+        cg.add(parent.set_auto_stop_switch(entity))
 
     if entity_config := config.get(CONF_CURRENT_HUMIDITY):
         entity = await sensor.new_sensor(entity_config)

@@ -47,6 +47,10 @@ levoit_classic_300s:
     name: Night light
     gamma_correct: 1.0
     default_transition_length: 0s
+  display:
+    name: Display
+  auto_stop:
+    name: Automatic stop
   current_humidity:
     name: Current humidity
   temperature:

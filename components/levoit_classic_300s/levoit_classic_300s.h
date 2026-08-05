@@ -6,6 +6,7 @@
 #include "esphome/components/number/number.h"
 #include "esphome/components/select/select.h"
 #include "esphome/components/sensor/sensor.h"
+#include "esphome/components/switch/switch.h"
 #include "esphome/components/text_sensor/text_sensor.h"
 #include "esphome/components/uart/uart.h"
 #include "esphome/core/component.h"
@@ -72,6 +73,26 @@ class LevoitNightLight final : public light::LightOutput {
   int16_t last_commanded_percent_{-1};
 };
 
+class LevoitDisplaySwitch final : public switch_::Switch {
+ public:
+  explicit LevoitDisplaySwitch(LevoitClassic300S *parent) : parent_(parent) {}
+  bool assumed_state() override { return true; }
+
+ protected:
+  void write_state(bool state) override;
+  LevoitClassic300S *parent_;
+};
+
+class LevoitAutoStopSwitch final : public switch_::Switch {
+ public:
+  explicit LevoitAutoStopSwitch(LevoitClassic300S *parent) : parent_(parent) {}
+  bool assumed_state() override { return true; }
+
+ protected:
+  void write_state(bool state) override;
+  LevoitClassic300S *parent_;
+};
+
 class LevoitClassic300S final : public PollingComponent, public uart::UARTDevice {
  public:
   void setup() override;
@@ -89,6 +110,8 @@ class LevoitClassic300S final : public PollingComponent, public uart::UARTDevice
     this->manual_mist_level_number_ = number;
   }
   void set_night_light(LevoitNightLight *night_light) { this->night_light_ = night_light; }
+  void set_display_switch(LevoitDisplaySwitch *display_switch) { this->display_switch_ = display_switch; }
+  void set_auto_stop_switch(LevoitAutoStopSwitch *auto_stop_switch) { this->auto_stop_switch_ = auto_stop_switch; }
   void set_current_humidity_sensor(sensor::Sensor *sensor) { this->current_humidity_sensor_ = sensor; }
   void set_temperature_sensor(sensor::Sensor *sensor) { this->temperature_sensor_ = sensor; }
   void set_tank_lifted_binary_sensor(binary_sensor::BinarySensor *sensor) { this->tank_lifted_sensor_ = sensor; }
@@ -101,7 +124,11 @@ class LevoitClassic300S final : public PollingComponent, public uart::UARTDevice
   void set_power(bool on);
   void set_manual_mist_level(uint8_t level);
   void set_auto_mode(uint8_t target_humidity);
+  void set_sleep_mode(uint8_t target_humidity);
+  void set_target_humidity(uint8_t target_humidity);
   void set_night_light_brightness(uint8_t percent);
+  void set_display(bool on);
+  void set_auto_stop(bool enabled);
 
  protected:
   struct QueuedCommand {
@@ -132,6 +159,8 @@ class LevoitClassic300S final : public PollingComponent, public uart::UARTDevice
   LevoitTargetHumidityNumber *target_humidity_number_{nullptr};
   LevoitManualMistLevelNumber *manual_mist_level_number_{nullptr};
   LevoitNightLight *night_light_{nullptr};
+  LevoitDisplaySwitch *display_switch_{nullptr};
+  LevoitAutoStopSwitch *auto_stop_switch_{nullptr};
   sensor::Sensor *current_humidity_sensor_{nullptr};
   sensor::Sensor *temperature_sensor_{nullptr};
   binary_sensor::BinarySensor *tank_lifted_sensor_{nullptr};

@@ -15,8 +15,8 @@ This project is based on UART captures from a Classic 300S and follows the exter
 |---|---|---|
 | Power | Fan | Implemented |
 | Manual mist level 1–9 | Number + Fan speed | Implemented; every level observed directly |
-| Operating mode | Select | Auto/Manual controllable; Sleep reported but remote command not mapped |
-| Auto target humidity, 30–80% | Number | Implemented; arbitrary targets observed |
+| Operating mode | Select | Auto/Manual captured; Sleep control implemented from both stock OTA images and reported through D13, but command awaits hardware verification |
+| Target humidity, 30–80% | Number | Standalone setter implemented from stock firmware; arbitrary targets were previously observed through Auto mode, but standalone command awaits hardware verification |
 | Current humidity | Sensor | Implemented |
 | Temperature | Sensor | Implemented; byte is believed to be °C |
 | Night light Off/Low/High | Light | Implemented; wire values are 0%/50%/100% and other brightness values are quantized |
@@ -24,10 +24,11 @@ This project is based on UART captures from a Classic 300S and follows the exter
 | No water/magnetic float open | Problem binary sensor | Implemented; mapped to status byte D6 |
 | MCU communication loss | Optional problem binary sensor + component warning | Implemented |
 | Raw 17-byte MCU state | Diagnostic text sensor | Implemented |
-| Display control | — | Not mapped yet |
+| Display control | Assumed-state switch | Implemented from both stock OTA images; no mapped status feedback and not yet hardware-verified |
+| Automatic stop | Assumed-state switch | Implemented from both stock OTA images; exact MCU behavior/status feedback not yet hardware-verified |
 | Timers and schedules | Home Assistant automations | Intentionally handled in Home Assistant |
 
-ESPHome currently has no native entity that exports as Home Assistant's `humidifier` domain, so the device is represented with standard ESPHome fan, select, number, light, sensor, and binary-sensor entities.
+ESPHome currently has no native entity that exports as Home Assistant's `humidifier` domain, so the device is represented with standard ESPHome fan, select, number, switch, light, sensor, and binary-sensor entities.
 
 ## Hardware and UART
 
@@ -178,7 +179,7 @@ logger:
 
 View the logs through the ESPHome Device Builder or `esphome logs`. The component records every valid transmitted and received frame, while `baud_rate: 0` keeps UART0 quiet for flashing and recovery. `VERY_VERBOSE` logging can affect performance and API stability, so restore the normal `DEBUG` logger after collecting captures.
 
-Change one physical state at a time and save the complete before/after frames. An unrecognized operating-mode byte is logged and does not replace the last valid Auto/Manual entity state; its exact value remains visible in `raw_status` and the frame log.
+Change one physical state at a time and save the complete before/after frames. An unrecognized operating-mode byte is logged and does not replace the last valid Auto/Manual/Sleep entity state; its exact value remains visible in `raw_status` and the frame log.
 
 ## Protocol design
 
@@ -200,7 +201,7 @@ Home Assistant entities
 
 Frames begin with `A5`, include a two-byte little-endian payload length, and satisfy `sum(all frame bytes) & 0xFF == 0xFF`. The streaming parser ignores noise, accepts fragmented input, bounds buffered data to the 64-byte maximum payload plus six framing bytes, checks checksums, and recovers by retaining the next possible preamble after malformed or truncated input. A valid frame already buffered behind a malformed candidate is emitted immediately.
 
-Command normalization is policy, separate from captured wire facts: auto humidity clamps to 30–80%, manual mist clamps to levels 1–9, and night-light brightness quantizes to off/50%/100%. The C++ production layer and Python reverse-engineering scaffold share those rules. Status bytes are never normalized: invalid targets and unknown modes remain unchanged in `raw_status` and logs, while invalid targets are withheld from the Number entity and unknown modes cannot replace the last valid Auto/Manual state.
+Command normalization is policy, separate from captured wire facts: auto, Sleep, and standalone target-humidity commands clamp to 30–80%, manual mist clamps to levels 1–9, and night-light brightness quantizes to off/50%/100%. The C++ production layer and Python reverse-engineering scaffold share those rules. Status bytes are never normalized: invalid targets and unknown modes remain unchanged in `raw_status` and logs, while invalid targets are withheld from the Number entity and unknown modes cannot replace the last valid mode state.
 
 ## Tests
 
@@ -218,9 +219,11 @@ The C++ tests cover captured frame reproduction, every command builder, incremen
 
 ## Reverse-engineering next steps
 
-The remaining work requires controlled captures, not guesses:
-
-1. With stock firmware, capture any ESP32-to-MCU command produced by an app Sleep/display toggle.
-2. Add fixtures to the tests before assigning controllable entities to provisional fields.
+Static analysis of the preserved stock flash recovered the app paths and UART
+formats for Sleep (`4082`), display (`A105`), automatic stop (`A5E5`), and the
+standalone target setter (`A2E8`). These are now exposed through the component
+with regression fixtures, but they have not yet been exercised against the
+appliance MCU. The display and automatic-stop switches therefore report only
+the last requested state. Hardware verification remains the next step.
 
 Please include raw frames, the exact physical state, firmware/model label, and one-variable-at-a-time capture steps with protocol contributions.

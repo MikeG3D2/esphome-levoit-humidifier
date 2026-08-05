@@ -14,11 +14,15 @@ using esphome::levoit_classic_300s::protocol::Status;
 using esphome::levoit_classic_300s::protocol::build_frame;
 using esphome::levoit_classic_300s::protocol::decode_status;
 using esphome::levoit_classic_300s::protocol::auto_mode_payload;
+using esphome::levoit_classic_300s::protocol::auto_stop_payload;
+using esphome::levoit_classic_300s::protocol::display_payload;
 using esphome::levoit_classic_300s::protocol::is_valid_target_humidity;
 using esphome::levoit_classic_300s::protocol::manual_mist_payload;
 using esphome::levoit_classic_300s::protocol::night_light_payload;
 using esphome::levoit_classic_300s::protocol::power_payload;
+using esphome::levoit_classic_300s::protocol::sleep_mode_payload;
 using esphome::levoit_classic_300s::protocol::status_request_payload;
+using esphome::levoit_classic_300s::protocol::target_humidity_payload;
 
 static void test_known_power_frame() {
   const std::vector<uint8_t> expected{0xA5, 0x22, 0x06, 0x05, 0x00, 0x8B, 0x01, 0x00, 0xA0, 0x00, 0x01};
@@ -49,6 +53,17 @@ static void test_captured_auto_mode_payloads() {
          std::vector<uint8_t>({0x01, 0x80, 0x40, 0x00, 0x25, 0x20, 0x2A, 0x09, 0x05, 0x01}));
 }
 
+static void test_statically_recovered_payloads() {
+  assert(sleep_mode_payload(53) ==
+         std::vector<uint8_t>({0x01, 0x82, 0x40, 0x00, 0x35, 0x30, 0x3A, 0x09, 0x05, 0x01}));
+  assert(target_humidity_payload(53) ==
+         std::vector<uint8_t>({0x01, 0xE8, 0xA2, 0x00, 0x00, 0x35}));
+  assert(display_payload(false) == std::vector<uint8_t>({0x01, 0x05, 0xA1, 0x00, 0x00}));
+  assert(display_payload(true) == std::vector<uint8_t>({0x01, 0x05, 0xA1, 0x00, 0x01}));
+  assert(auto_stop_payload(false) == std::vector<uint8_t>({0x01, 0xE5, 0xA5, 0x00, 0x00}));
+  assert(auto_stop_payload(true) == std::vector<uint8_t>({0x01, 0xE5, 0xA5, 0x00, 0x01}));
+}
+
 static void test_status_request_payload() {
   assert(status_request_payload() == std::vector<uint8_t>({0x01, 0x84, 0x40, 0x00}));
 }
@@ -63,6 +78,10 @@ static void test_auto_target_is_normalized_to_supported_range() {
   assert(auto_mode_payload(80) == maximum);
   assert(auto_mode_payload(81) == maximum);
   assert(auto_mode_payload(255) == maximum);
+  assert(sleep_mode_payload(0)[4] == 30);
+  assert(sleep_mode_payload(255)[4] == 80);
+  assert(target_humidity_payload(0).back() == 30);
+  assert(target_humidity_payload(255).back() == 80);
 }
 
 static void test_target_humidity_validation_uses_supported_boundaries() {
@@ -307,6 +326,7 @@ int main() {
   test_night_light_payloads();
   test_manual_mist_payloads();
   test_captured_auto_mode_payloads();
+  test_statically_recovered_payloads();
   test_status_request_payload();
   test_auto_target_is_normalized_to_supported_range();
   test_target_humidity_validation_uses_supported_boundaries();

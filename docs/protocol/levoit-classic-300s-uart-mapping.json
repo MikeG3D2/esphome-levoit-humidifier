@@ -122,6 +122,76 @@
         "00"
       ],
       "confidence": "confirmed"
+    },
+    "A105_display": {
+      "payload_template": [
+        "01",
+        "05",
+        "A1",
+        "00",
+        "value"
+      ],
+      "values": {
+        "00": "off",
+        "01": "on"
+      },
+      "implementation": "optional_assumed_state_switch",
+      "confidence": "strong_static_evidence_in_two_ota_versions_not_hardware_verified"
+    },
+    "4082_sleep_mode": {
+      "payload_template": [
+        "01",
+        "82",
+        "40",
+        "00",
+        "target",
+        "target_minus_5",
+        "target_plus_5",
+        "09",
+        "05",
+        "01"
+      ],
+      "implementation": "operating_mode_select_sleep_option",
+      "confidence": "strong_static_evidence_in_two_ota_versions_not_hardware_verified"
+    },
+    "A5E5_auto_stop": {
+      "payload_template": [
+        "01",
+        "E5",
+        "A5",
+        "00",
+        "value"
+      ],
+      "values": {
+        "00": "disabled",
+        "01": "enabled"
+      },
+      "implementation": "optional_assumed_state_switch",
+      "confidence": "strong_static_evidence_in_two_ota_versions_not_hardware_verified"
+    },
+    "A2E8_target_humidity": {
+      "payload_template": [
+        "01",
+        "E8",
+        "A2",
+        "00",
+        "00",
+        "target"
+      ],
+      "note": "Named humidifier_uart_set_tgt_humidity; used by the target-humidity Number without changing operating mode.",
+      "implementation": "target_humidity_number",
+      "confidence": "strong_static_evidence_not_hardware_verified"
+    },
+    "A26A_timer_logo": {
+      "payload_template": [
+        "01",
+        "6A",
+        "A2",
+        "00",
+        "value"
+      ],
+      "note": "Named humidifier_uart_set_timer_logo; value 00 was previously observed at startup.",
+      "confidence": "strong_static_evidence_not_hardware_verified"
     }
   },
   "status_report": {
@@ -235,6 +305,16 @@
     }
   },
   "observations": {
+    "stock_firmware_analysis": {
+      "dump_sha256": "95a659561893dcd739e376bd19045978aefa6f9721becf8eb3bf8b72a025c3b2",
+      "analyzed_date": "2026-08-04",
+      "ota_versions": [
+        "Vesync-RTOS_v3.0-831-ge75d2533b",
+        "Vesync-RTOS_v3.0-684-gdf9a3d7bd"
+      ],
+      "result": "A105 display, 4082 Sleep, A5E5 automatic-stop, A2E8 target-humidity, and A26A timer-logo builders recovered in both OTA versions",
+      "confidence": "strong_static_evidence_not_hardware_verified"
+    },
     "display_toggle": {
       "status_bodies": [
         "00 00 00 02 01 00 00 01 64 00 35 34 16 00 00 00 00",

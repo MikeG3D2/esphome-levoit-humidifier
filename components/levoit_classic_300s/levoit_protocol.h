@@ -86,6 +86,10 @@ std::vector<uint8_t> power_payload(bool on);
 std::vector<uint8_t> night_light_payload(uint8_t percent);
 std::vector<uint8_t> manual_mist_payload(uint8_t level);
 std::vector<uint8_t> auto_mode_payload(uint8_t target_humidity);
+std::vector<uint8_t> sleep_mode_payload(uint8_t target_humidity);
+std::vector<uint8_t> target_humidity_payload(uint8_t target_humidity);
+std::vector<uint8_t> display_payload(bool on);
+std::vector<uint8_t> auto_stop_payload(bool enabled);
 std::vector<uint8_t> status_request_payload();
 
 bool decode_status(const Frame &frame, Status &status);

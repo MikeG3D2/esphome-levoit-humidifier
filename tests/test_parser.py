@@ -2,13 +2,17 @@ import pytest
 
 from tools.levoit_uart_parser import (
     auto_mode_payload,
+    auto_stop_payload,
     build_frame,
     decode_status_payload,
+    display_payload,
     manual_mist_payload,
     night_light_payload,
     parse_frame,
     power_payload,
+    sleep_mode_payload,
     status_request_payload,
+    target_humidity_payload,
 )
 
 
@@ -60,6 +64,22 @@ def test_auto_target_is_normalized_to_supported_range():
     assert auto_mode_payload(80) == maximum
     assert auto_mode_payload(81) == maximum
     assert auto_mode_payload(255) == maximum
+
+
+def test_statically_recovered_command_payloads():
+    assert sleep_mode_payload(53).hex(" ") == "01 82 40 00 35 30 3a 09 05 01"
+    assert target_humidity_payload(53).hex(" ") == "01 e8 a2 00 00 35"
+    assert display_payload(False).hex(" ") == "01 05 a1 00 00"
+    assert display_payload(True).hex(" ") == "01 05 a1 00 01"
+    assert auto_stop_payload(False).hex(" ") == "01 e5 a5 00 00"
+    assert auto_stop_payload(True).hex(" ") == "01 e5 a5 00 01"
+
+
+def test_recovered_humidity_commands_use_supported_range():
+    assert sleep_mode_payload(0)[4] == 30
+    assert sleep_mode_payload(255)[4] == 80
+    assert target_humidity_payload(0)[-1] == 30
+    assert target_humidity_payload(255)[-1] == 80
 
 
 def test_decode_captured_status():

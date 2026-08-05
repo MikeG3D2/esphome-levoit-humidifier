@@ -63,13 +63,51 @@ def manual_mist_payload(level: int) -> bytes:
 
 def auto_mode_payload(target_humidity: int) -> bytes:
     target_humidity = max(30, min(80, target_humidity))
-    return bytes([
-        0x01, 0x80, 0x40, 0x00,
-        target_humidity,
-        target_humidity - 5,
-        target_humidity + 5,
-        0x09, 0x05, 0x01,
-    ])
+    return bytes(
+        [
+            0x01,
+            0x80,
+            0x40,
+            0x00,
+            target_humidity,
+            target_humidity - 5,
+            target_humidity + 5,
+            0x09,
+            0x05,
+            0x01,
+        ]
+    )
+
+
+def sleep_mode_payload(target_humidity: int) -> bytes:
+    target_humidity = max(30, min(80, target_humidity))
+    return bytes(
+        [
+            0x01,
+            0x82,
+            0x40,
+            0x00,
+            target_humidity,
+            target_humidity - 5,
+            target_humidity + 5,
+            0x09,
+            0x05,
+            0x01,
+        ]
+    )
+
+
+def target_humidity_payload(target_humidity: int) -> bytes:
+    target_humidity = max(30, min(80, target_humidity))
+    return bytes([0x01, 0xE8, 0xA2, 0x00, 0x00, target_humidity])
+
+
+def display_payload(on: bool) -> bytes:
+    return bytes([0x01, 0x05, 0xA1, 0x00, int(on)])
+
+
+def auto_stop_payload(enabled: bool) -> bytes:
+    return bytes([0x01, 0xE5, 0xA5, 0x00, int(enabled)])
 
 
 def status_request_payload() -> bytes:
@@ -93,9 +131,7 @@ def decode_status_payload(payload: bytes) -> dict[str, int | str | bool | None]:
         "target_humidity_valid": is_valid_target_humidity(d[10]),
         "current_humidity_percent": d[11],
         "temperature_celsius": d[12],
-        "mode": {0: "auto", 1: "manual", 2: "sleep"}.get(
-            d[13], f"unknown_{d[13]}"
-        ),
+        "mode": {0: "auto", 1: "manual", 2: "sleep"}.get(d[13], f"unknown_{d[13]}"),
         "manual_mist_level": d[14],
         "night_light_brightness_percent": d[15],
         "raw_state_bytes": d.hex(" "),

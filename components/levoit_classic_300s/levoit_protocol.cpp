@@ -126,6 +126,25 @@ std::vector<uint8_t> auto_mode_payload(uint8_t target_humidity) {
           static_cast<uint8_t>(target_humidity + 5), 0x09, 0x05, 0x01};
 }
 
+std::vector<uint8_t> sleep_mode_payload(uint8_t target_humidity) {
+  target_humidity = normalize_target_humidity(target_humidity);
+  return {0x01, 0x82, 0x40, 0x00, target_humidity, static_cast<uint8_t>(target_humidity - 5),
+          static_cast<uint8_t>(target_humidity + 5), 0x09, 0x05, 0x01};
+}
+
+std::vector<uint8_t> target_humidity_payload(uint8_t target_humidity) {
+  target_humidity = normalize_target_humidity(target_humidity);
+  return {0x01, 0xE8, 0xA2, 0x00, 0x00, target_humidity};
+}
+
+std::vector<uint8_t> display_payload(bool on) {
+  return {0x01, 0x05, 0xA1, 0x00, static_cast<uint8_t>(on)};
+}
+
+std::vector<uint8_t> auto_stop_payload(bool enabled) {
+  return {0x01, 0xE5, 0xA5, 0x00, static_cast<uint8_t>(enabled)};
+}
+
 std::vector<uint8_t> status_request_payload() { return {0x01, 0x84, 0x40, 0x00}; }
 
 bool decode_status(const Frame &frame, Status &status) {

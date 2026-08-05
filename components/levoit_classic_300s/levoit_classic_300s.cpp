@@ -33,7 +33,7 @@ void LevoitModeSelect::control(size_t index) {
   } else if (index == 1) {
     this->parent_->set_manual_mist_level(0);
   } else if (index == 2) {
-    ESP_LOGW(TAG, "Sleep is reported by the MCU, but its remote command is not mapped");
+    this->parent_->set_sleep_mode(0);
   } else {
     ESP_LOGW(TAG, "Ignoring invalid operating mode index: %u", static_cast<unsigned>(index));
   }
@@ -41,7 +41,7 @@ void LevoitModeSelect::control(size_t index) {
 
 void LevoitTargetHumidityNumber::control(float value) {
   const auto target = static_cast<uint8_t>(std::lround(value));
-  this->parent_->set_auto_mode(target);
+  this->parent_->set_target_humidity(target);
 }
 
 void LevoitManualMistLevelNumber::control(float value) {
@@ -85,6 +85,16 @@ void LevoitNightLight::sync_brightness(uint8_t percent) {
   }
   call.set_transition_length(0);
   call.perform();
+}
+
+void LevoitDisplaySwitch::write_state(bool state) {
+  this->parent_->set_display(state);
+  this->publish_state(state);
+}
+
+void LevoitAutoStopSwitch::write_state(bool state) {
+  this->parent_->set_auto_stop(state);
+  this->publish_state(state);
 }
 
 void LevoitClassic300S::setup() {
@@ -157,6 +167,8 @@ void LevoitClassic300S::dump_config() {
   ESP_LOGCONFIG(TAG, "  Target humidity entity: %s", YESNO(this->target_humidity_number_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Manual mist level entity: %s", YESNO(this->manual_mist_level_number_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Night light entity: %s", YESNO(this->night_light_ != nullptr));
+  ESP_LOGCONFIG(TAG, "  Display switch: %s", YESNO(this->display_switch_ != nullptr));
+  ESP_LOGCONFIG(TAG, "  Automatic stop switch: %s", YESNO(this->auto_stop_switch_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Current humidity sensor: %s", YESNO(this->current_humidity_sensor_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Temperature sensor: %s", YESNO(this->temperature_sensor_ != nullptr));
   ESP_LOGCONFIG(TAG, "  Tank lifted sensor: %s", YESNO(this->tank_lifted_sensor_ != nullptr));
@@ -181,8 +193,26 @@ void LevoitClassic300S::set_auto_mode(uint8_t target_humidity) {
   this->enqueue_command_(protocol::auto_mode_payload(this->last_target_humidity_));
 }
 
+void LevoitClassic300S::set_sleep_mode(uint8_t target_humidity) {
+  if (target_humidity != 0) {
+    this->last_target_humidity_ = protocol::normalize_target_humidity(target_humidity);
+  }
+  this->enqueue_command_(protocol::sleep_mode_payload(this->last_target_humidity_));
+}
+
+void LevoitClassic300S::set_target_humidity(uint8_t target_humidity) {
+  this->last_target_humidity_ = protocol::normalize_target_humidity(target_humidity);
+  this->enqueue_command_(protocol::target_humidity_payload(this->last_target_humidity_));
+}
+
 void LevoitClassic300S::set_night_light_brightness(uint8_t percent) {
   this->enqueue_command_(protocol::night_light_payload(percent));
+}
+
+void LevoitClassic300S::set_display(bool on) { this->enqueue_command_(protocol::display_payload(on)); }
+
+void LevoitClassic300S::set_auto_stop(bool enabled) {
+  this->enqueue_command_(protocol::auto_stop_payload(enabled));
 }
 
 void LevoitClassic300S::enqueue_command_(const std::vector<uint8_t> &payload, bool refresh_after,

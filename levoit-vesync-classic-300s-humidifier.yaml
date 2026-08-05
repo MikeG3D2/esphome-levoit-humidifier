@@ -78,6 +78,14 @@ levoit_classic_300s:
     gamma_correct: 1.0
     default_transition_length: 0s
 
+  # Recovered from both stock OTA images; controls are not yet hardware-verified.
+  # The MCU status report has no mapped feedback fields for these switches.
+  display:
+    name: Display
+
+  auto_stop:
+    name: Automatic stop
+
   current_humidity:
     name: Current humidity
 

@@ -10,9 +10,9 @@ def test_device_builder_config_is_the_single_copy_paste_source() -> None:
     sample = DEVICE_BUILDER_CONFIG.read_text()
     readme = README.read_text()
 
-    assert (
-        "github://MikeG3D2/esphome-levoit-humidifier@main" in sample
-    ), "the Device Builder sample must fetch the published component"
+    assert "github://MikeG3D2/esphome-levoit-humidifier@main" in sample, (
+        "the Device Builder sample must fetch the published component"
+    )
     assert "type: local" not in sample
     assert "path: components" not in sample
     assert "variant: esp32" in sample
@@ -44,6 +44,26 @@ def test_user_config_exposes_captured_water_and_mist_states() -> None:
     assert 'publish_state("Unknown")' not in component_cpp
 
 
+def test_user_config_exposes_statically_recovered_controls() -> None:
+    sample = DEVICE_BUILDER_CONFIG.read_text()
+    component_schema = (ROOT / "components/levoit_classic_300s/__init__.py").read_text()
+    component_cpp = (
+        ROOT / "components/levoit_classic_300s/levoit_classic_300s.cpp"
+    ).read_text()
+
+    assert "display:" in sample
+    assert "auto_stop:" in sample
+    assert 'CONF_DISPLAY = "display"' in component_schema
+    assert 'CONF_AUTO_STOP = "auto_stop"' in component_schema
+    assert "set_sleep_mode(0)" in component_cpp
+    assert "set_target_humidity(target)" in component_cpp
+
+
+def test_sensitive_stock_dump_is_ignored() -> None:
+    ignore_rules = (ROOT / ".gitignore").read_text().splitlines()
+    assert "*.bin" in ignore_rules
+
+
 def test_protocol_artifacts_are_organized_and_current() -> None:
     notes = ROOT / "docs/protocol/levoit-classic-300s-uart.md"
     mapping_path = ROOT / "docs/protocol/levoit-classic-300s-uart-mapping.json"
@@ -71,6 +91,4 @@ def test_protocol_artifacts_are_organized_and_current() -> None:
     display_toggle = mapping["observations"]["display_toggle"]
     assert display_toggle["result"] == "D13_0x02_is_sleep_mode"
     assert display_toggle["confidence"] == "confirmed"
-    assert mapping["status_report"]["fields"]["D13"]["values"]["2"] == (
-        "sleep"
-    )
+    assert mapping["status_report"]["fields"]["D13"]["values"]["2"] == ("sleep")

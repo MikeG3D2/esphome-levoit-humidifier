@@ -1,7 +1,7 @@
 # Levoit Humidifier UART Reverse-Engineering Notes
 
-Captured: 2026-08-02 through 2026-08-03
-Status: Core commands and primary status fields mapped from controlled captures.
+Captured: 2026-08-02 through 2026-08-03; stock flash analyzed 2026-08-04
+Status: Core commands and primary status fields mapped from controlled captures; display, Sleep, automatic-stop, and standalone target commands implemented from static recovery but not yet hardware-verified.
 
 ## Electrical / FP1 Pinout
 
@@ -131,6 +131,79 @@ The meanings of trailing bytes `09 05 01` are not fully proven. They may represe
 01 84 40 00
 ```
 
+## Commands Recovered from the Stock Firmware
+
+The complete stock ESP32 flash image in [`docs/firmware/`](../firmware/) contains
+two plaintext OTA applications built in February 2022 and June 2023. Both
+versions contain the same command constants and named UART builder routines.
+The findings below therefore have strong static evidence, but unlike the
+commands above they have not yet been confirmed by a controlled UART capture.
+
+### Display — command `A105`
+
+The `alterDisplay` cloud action reaches `humidifier_uart_set_display`. Its
+payload is:
+
+```text
+01 05 A1 00 VALUE
+```
+
+| VALUE | Action |
+|---|---|
+| `00` | Display off |
+| `01` | Display on |
+
+The cloud-action parser explicitly maps its `off` and `on` strings to these
+values. The periodic 17-byte MCU status does not appear to expose the display
+state directly.
+
+### Sleep mode — command `4082`
+
+The `enterSleepMode` cloud action reaches
+`humidifier_uart_set_sleep_auto_mode`. The routine reads the currently
+configured target humidity and constructs:
+
+```text
+01 82 40 00 TARGET LOWER UPPER 09 05 01
+```
+
+with:
+
+```text
+LOWER = TARGET - 5
+UPPER = TARGET + 5
+```
+
+This parallels Auto command `4080`; only the command ID changes to `4082`.
+The already-captured status mapping `D13 = 02` reports the resulting Sleep
+mode.
+
+### Automatic stop — command `A5E5`
+
+The `alterAutoStop` cloud action reaches `humidifier_uart_set_auto_stop`. The
+routine normalizes its argument to a boolean and constructs:
+
+```text
+01 E5 A5 00 VALUE
+```
+
+| VALUE | Action |
+|---|---|
+| `00` | Automatic stop disabled |
+| `01` | Automatic stop enabled |
+
+The exact MCU behavior and any corresponding status field have not been
+confirmed from a capture.
+
+### Additional statically named commands
+
+Two other adjacent routines explain previously unknown or unused command IDs:
+
+| Command | Named routine | Payload | Confidence |
+|---|---|---|---|
+| `A2E8` | `humidifier_uart_set_tgt_humidity` | `01 E8 A2 00 00 TARGET` | Strong static evidence; now used for the target-humidity Number, not hardware-verified |
+| `A26A` | `humidifier_uart_set_timer_logo` | `01 6A A2 00 VALUE` | Strong static evidence; `VALUE = 00` was previously observed at startup |
+
 ## MCU → ESP32 Status Report
 
 Status frame payload:
@@ -228,14 +301,16 @@ D6 = 00  water present / magnetic float closed
 
 ## Startup / Unknown Commands
 
-Observed but not fully mapped:
+Observed at startup:
 
 ```text
 01 6A A2 00 00
 01 29 A1 00 ...
 ```
 
-Do not label these without controlled captures.
+Static analysis names `A26A` as the timer-logo command. Command `A129` is built
+by `humidifier_uart_btn_act`, but its arguments and external behavior remain
+unmapped. Neither label has yet been verified by a controlled UART capture.
 
 ## Display / Screen Toggle
 
@@ -265,16 +340,23 @@ The changing fields are:
 | D13 | `02` | `00` | Mode `02` is Sleep |
 | D14 | `05` | `00` | Current mist level 5 versus idle |
 
-D13 is the established operating-mode byte, and the repeated transition confirms `02 = Sleep`. D8 remained `64`, so it is not a direct screen-enabled flag. Sleep can be reported by ESPHome, but capturing a stock-app Sleep/display command on ESP32-to-MCU UART is still required before it can be controlled remotely.
+D13 is the established operating-mode byte, and the repeated transition confirms `02 = Sleep`. D8 remained `64`, so it is not a direct screen-enabled flag. Sleep can already be reported by ESPHome.
+
+Static analysis subsequently recovered separate display command `A105` and
+Sleep command `4082`. The display command explains why no display bit changed
+in the periodic status body: its state is not represented by an identified
+status byte. The component now exposes both controls, but the display switch is
+explicitly assumed-state and both commands still need hardware confirmation.
 
 ## Implementation Status
 
 - Streaming frame parser and checksum validation: implemented in `components/levoit_classic_300s/levoit_protocol.*`.
 - Power, light, manual mode, auto mode, and status-query builders: implemented.
+- Sleep `4082`, display `A105`, automatic-stop `A5E5`, and standalone target `A2E8`: implemented from both stock OTA images; not yet hardware-verified.
 - Tank-lifted and no-water problem sensors: implemented on D5 and D6 respectively.
 - ESPHome fan, select, number, light, sensor, binary-sensor, and diagnostic adapters: implemented.
 
 ## Next Development Tasks
 
 - Identify D7 and D16 through one-variable-at-a-time tests.
-- With stock firmware, capture any outbound command produced by an app Sleep/display toggle.
+- Hardware-verify statically recovered Sleep `4082`, display `A105`, automatic-stop `A5E5`, and standalone target `A2E8` commands.
